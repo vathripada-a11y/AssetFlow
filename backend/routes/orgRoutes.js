@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const orgService = require('../services/orgService');
+const orgService = require('../services/orgService.js');
 const authenticate = require('../middleware/auth');
 const requireRole = require('../middleware/rbac');
 
