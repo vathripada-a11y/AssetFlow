@@ -25,37 +25,49 @@ export default function Login() {
   }
 
   return (
-    <div style={{ maxWidth: 360, margin: '80px auto', fontFamily: 'sans-serif' }}>
-      <h2>AssetFlow Login</h2>
-      <form onSubmit={handleSubmit}>
-        <div style={{ marginBottom: 12 }}>
-          <label>Email</label>
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            style={{ width: '100%', padding: 8 }}
-            required
-          />
+    <div className="auth-page">
+      <div className="auth-card">
+        <div className="auth-header">
+          <p className="eyebrow">Welcome back to</p>
+          <h2>AssetFlow</h2>
+          <p className="auth-copy">Sign in to continue managing inventory, approvals, and asset workflows.</p>
         </div>
-        <div style={{ marginBottom: 12 }}>
-          <label>Password</label>
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            style={{ width: '100%', padding: 8 }}
-            required
-          />
-        </div>
-        {error && <p style={{ color: 'red' }}>{error}</p>}
-        <button type="submit" disabled={loading} style={{ width: '100%', padding: 10 }}>
-          {loading ? 'Logging in...' : 'Log In'}
-        </button>
-      </form>
-      <p style={{ marginTop: 12 }}>
-        No account? <Link to="/signup">Sign up</Link>
-      </p>
+
+        <form onSubmit={handleSubmit} className="auth-form">
+          <div className="form-row">
+            <label htmlFor="email">Email address</label>
+            <input
+              id="email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="form-input"
+              required
+            />
+          </div>
+          <div className="form-row">
+            <label htmlFor="password">Password</label>
+            <input
+              id="password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="form-input"
+              required
+            />
+          </div>
+
+          {error && <p className="form-error">{error}</p>}
+
+          <button type="submit" disabled={loading} className="btn btn-primary">
+            {loading ? 'Signing in...' : 'Sign in'}
+          </button>
+        </form>
+
+        <p className="auth-footer">
+          New to AssetFlow? <Link to="/signup">Create an account</Link>
+        </p>
+      </div>
     </div>
   );
 }

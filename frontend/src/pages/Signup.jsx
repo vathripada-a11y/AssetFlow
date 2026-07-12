@@ -28,51 +28,62 @@ export default function Signup() {
   }
 
   return (
-    <div style={{ maxWidth: 360, margin: '80px auto', fontFamily: 'sans-serif' }}>
-      <h2>Create an Employee Account</h2>
-      <p style={{ fontSize: 13, color: '#555' }}>
-        New accounts are created with the Employee role only. Admins can promote
-        you to Department Head or Asset Manager from the Employee Directory.
-      </p>
-      <form onSubmit={handleSubmit}>
-        <div style={{ marginBottom: 12 }}>
-          <label>Name</label>
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            style={{ width: '100%', padding: 8 }}
-            required
-          />
+    <div className="auth-page">
+      <div className="auth-card">
+        <div className="auth-header">
+          <p className="eyebrow">Create your account</p>
+          <h2>Join AssetFlow</h2>
+          <p className="auth-copy">
+            Register a new employee account to access workflows, dashboards, and asset tracking.
+          </p>
         </div>
-        <div style={{ marginBottom: 12 }}>
-          <label>Email</label>
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            style={{ width: '100%', padding: 8 }}
-            required
-          />
-        </div>
-        <div style={{ marginBottom: 12 }}>
-          <label>Password</label>
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            style={{ width: '100%', padding: 8 }}
-            required
-          />
-        </div>
-        {error && <p style={{ color: 'red' }}>{error}</p>}
-        {success && <p style={{ color: 'green' }}>Account created! Redirecting to login...</p>}
-        <button type="submit" disabled={loading} style={{ width: '100%', padding: 10 }}>
-          {loading ? 'Creating account...' : 'Sign Up'}
-        </button>
-      </form>
-      <p style={{ marginTop: 12 }}>
-        Already have an account? <Link to="/login">Log in</Link>
-      </p>
+
+        <form onSubmit={handleSubmit} className="auth-form">
+          <div className="form-row">
+            <label htmlFor="name">Full name</label>
+            <input
+              id="name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="form-input"
+              required
+            />
+          </div>
+          <div className="form-row">
+            <label htmlFor="email">Email address</label>
+            <input
+              id="email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="form-input"
+              required
+            />
+          </div>
+          <div className="form-row">
+            <label htmlFor="password">Password</label>
+            <input
+              id="password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="form-input"
+              required
+            />
+          </div>
+
+          {error && <p className="form-error">{error}</p>}
+          {success && <p className="form-success">Account created! Redirecting to login...</p>}
+
+          <button type="submit" disabled={loading} className="btn btn-primary">
+            {loading ? 'Creating account...' : 'Create account'}
+          </button>
+        </form>
+
+        <p className="auth-footer">
+          Already have an account? <Link to="/login">Log in</Link>
+        </p>
+      </div>
     </div>
   );
 }
