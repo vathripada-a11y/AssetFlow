@@ -14,7 +14,7 @@ const KPI_LABELS = {
 export default function Dashboard() {
   const [kpis, setKpis] = useState(null);
   const [error, setError] = useState('');
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
 
   useEffect(() => {
     client.get('/dashboard/kpis')
@@ -24,10 +24,7 @@ export default function Dashboard() {
 
   return (
     <div style={{ fontFamily: 'sans-serif', padding: 24 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h2>Welcome, {user?.name} ({user?.role})</h2>
-        <button onClick={logout}>Log out</button>
-      </div>
+      <h2>Welcome, {user?.name} ({user?.role})</h2>
 
       {error && <p style={{ color: 'red' }}>{error}</p>}
 

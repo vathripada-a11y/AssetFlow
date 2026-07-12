@@ -10,7 +10,6 @@ client.interceptors.request.use((config) => {
   return config;
 });
 
-// Central place to surface backend error messages consistently.
 client.interceptors.response.use(
   (response) => response,
   (error) => {
