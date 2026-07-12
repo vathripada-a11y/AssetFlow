@@ -8,7 +8,7 @@ const assetRoutes = require('./routes/assetRoutes');
 const bookingRoutes = require('./routes/bookingRoutes');
 const maintenanceRoutes = require('./routes/maintenanceRoutes');
 const auditRoutes = require('./routes/auditRoutes');
-const notificationRoutes = require('./routes/notificationRoutes.js/index.js');
+const notificationRoutes = require('./routes/notificationRoutes');
 const dashboardRoutes = require('./routes/dashboardRoutes.js');
 
 const app = express();
