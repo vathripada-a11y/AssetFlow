@@ -25,7 +25,6 @@ export default function Dashboard() {
   }, []);
 
   return (
-<<<<<<< HEAD
     <div className="dashboard-page">
       <div className="hero-card card">
         <div>
@@ -42,10 +41,6 @@ export default function Dashboard() {
           </button>
         </div>
       </div>
-=======
-    <div style={{ fontFamily: 'sans-serif', padding: 24 }}>
-      <h2>Welcome, {user?.name} ({user?.role})</h2>
->>>>>>> af7954805b81b11320d15f36809d1b7c08b89d76
 
       {error && <p className="form-error">{error}</p>}
 
