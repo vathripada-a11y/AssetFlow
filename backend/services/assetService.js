@@ -68,34 +68,84 @@ async function getAssetHistory(assetId) {
 // Core business rule: an asset that is already actively allocated cannot be
 // allocated again. Instead, the caller is told who holds it and pointed to
 // the Transfer Request flow.
-async function allocateAsset({ assetId, employeeId, departmentId, expectedReturnDate }) {
-  const [existing] = await pool.query(
-    `SELECT al.id, e.name AS holder_name
-     FROM allocations al
-     LEFT JOIN employees e ON al.employee_id = e.id
-     WHERE al.asset_id = ? AND al.status = 'active'`,
-    [assetId]
-  );
+async function allocateAsset({
+  assetId,
+  employeeId,
+  departmentId,
+  expectedReturnDate
+}) {
+  const connection = await pool.getConnection();
 
-  if (existing.length > 0) {
-    const err = new Error(
-      `This asset is currently held by ${existing[0].holder_name || 'another department'}. ` +
-      `Use the Transfer Request option instead of a new allocation.`
+  try {
+    await connection.beginTransaction();
+
+    // Lock the asset row so concurrent allocation requests
+    // cannot modify the same asset simultaneously.
+    const [assetRows] = await connection.query(
+      `SELECT id, status
+       FROM assets
+       WHERE id = ?
+       FOR UPDATE`,
+      [assetId]
     );
-    err.status = 409;
-    err.currentHolder = existing[0].holder_name;
+
+    if (assetRows.length === 0) {
+      const err = new Error('Asset not found.');
+      err.status = 404;
+      throw err;
+    }
+
+    const [existing] = await connection.query(
+      `SELECT al.id, e.name AS holder_name
+       FROM allocations al
+       LEFT JOIN employees e ON al.employee_id = e.id
+       WHERE al.asset_id = ? AND al.status = 'active'`,
+      [assetId]
+    );
+
+    if (existing.length > 0) {
+      const err = new Error(
+        `This asset is currently held by ${
+          existing[0].holder_name || 'another department'
+        }. Use the Transfer Request option instead of a new allocation.`
+      );
+
+      err.status = 409;
+      err.currentHolder = existing[0].holder_name;
+      throw err;
+    }
+
+    const [result] = await connection.query(
+      `INSERT INTO allocations
+       (asset_id, employee_id, department_id, expected_return_date, status)
+       VALUES (?, ?, ?, ?, 'active')`,
+      [
+        assetId,
+        employeeId || null,
+        departmentId || null,
+        expectedReturnDate || null
+      ]
+    );
+
+    await connection.query(
+      `UPDATE assets
+       SET status = 'allocated'
+       WHERE id = ?`,
+      [assetId]
+    );
+    
+
+    await connection.commit();
+
+    return { id: result.insertId };
+
+  } catch (err) {
+    await connection.rollback();
     throw err;
+
+  } finally {
+    connection.release();
   }
-
-  const [result] = await pool.query(
-    `INSERT INTO allocations (asset_id, employee_id, department_id, expected_return_date, status)
-     VALUES (?, ?, ?, ?, 'active')`,
-    [assetId, employeeId || null, departmentId || null, expectedReturnDate || null]
-  );
-
-  await pool.query("UPDATE assets SET status = 'allocated' WHERE id = ?", [assetId]);
-
-  return { id: result.insertId };
 }
 
 async function requestTransfer({ assetId, requestedBy }) {
