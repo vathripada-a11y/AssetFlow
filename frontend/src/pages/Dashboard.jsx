@@ -16,7 +16,7 @@ const KPI_LABELS = {
 export default function Dashboard() {
   const [kpis, setKpis] = useState(null);
   const [error, setError] = useState('');
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
 
   useEffect(() => {
     client.get('/dashboard/kpis')

@@ -6,10 +6,12 @@ import Signup from './pages/Signup';
 import Dashboard from './pages/Dashboard';
 import Assets from './pages/Assets';
 import AssetDetails from './pages/AssetDetails';
+import Background from './components/Background';
 
 export default function App() {
   return (
     <div className="app-shell">
+      <Background />
       <AuthProvider>
         <BrowserRouter>
           <Routes>
@@ -40,6 +42,7 @@ export default function App() {
                 </ProtectedRoute>
               }
             />
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>
         </BrowserRouter>
       </AuthProvider>

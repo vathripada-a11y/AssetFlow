@@ -170,3 +170,12 @@ CREATE TABLE activity_logs (
 -- Password is 'Admin@123' hashed with bcrypt (10 rounds) - CHANGE after first login.
 -- Generate your own hash if this doesn't match your bcrypt version; see backend README.
 INSERT INTO departments (name, status) VALUES ('Administration', 'active');
+INSERT INTO employees (name, email, password_hash, department_id, role, status)
+VALUES (
+  'Admin User',
+  'admin@assetflow.local',
+  '$2a$10$eqriWbG9CrsiORxW.59kZegsVUoXtHt.nAIHvb/aUo77/HF1ckfp.',
+  1,
+  'admin',
+  'active'
+);

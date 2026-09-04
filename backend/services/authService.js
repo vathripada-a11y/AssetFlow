@@ -47,6 +47,7 @@ async function login({ email, password }) {
     throw err;
   }
 
+  const jwtSecret = process.env.JWT_SECRET || 'change_this_to_a_long_random_string';
   const token = jwt.sign(
     {
       id: employee.id,
@@ -55,7 +56,7 @@ async function login({ email, password }) {
       role: employee.role,
       department_id: employee.department_id
     },
-    process.env.JWT_SECRET,
+    jwtSecret,
     { expiresIn: '8h' }
   );
 
