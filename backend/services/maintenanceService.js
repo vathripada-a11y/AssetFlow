@@ -1,4 +1,5 @@
 const pool = require('../config/db');
+const { logActivity, notify } = require('./notificationService');
 
 async function raiseRequest({ assetId, raisedBy, issueDescription, priority, photoUrl }) {
   const [result] = await pool.query(
@@ -6,6 +7,7 @@ async function raiseRequest({ assetId, raisedBy, issueDescription, priority, pho
      VALUES (?, ?, ?, ?, ?, 'pending')`,
     [assetId, raisedBy, issueDescription, priority || 'medium', photoUrl || null]
   );
+  await logActivity(raisedBy, `Raised maintenance request #${result.insertId} for asset #${assetId}`);
   return { id: result.insertId };
 }
 
@@ -67,6 +69,9 @@ async function approveRequest(requestId, approvedBy) {
       [req.asset_id]
     );
 
+    await logActivity(approvedBy, `Approved maintenance request #${requestId} for asset #${req.asset_id}`, connection);
+    await notify(req.raised_by, 'maintenance', `Your maintenance request #${requestId} has been approved.`, connection);
+
     await connection.commit();
 
   } catch (err) {
@@ -79,10 +84,15 @@ async function approveRequest(requestId, approvedBy) {
 }
 
 async function rejectRequest(requestId, approvedBy) {
-  await pool.query(
-    "UPDATE maintenance_requests SET status = 'rejected', approved_by = ? WHERE id = ?",
-    [approvedBy, requestId]
-  );
+  const [rows] = await pool.query('SELECT * FROM maintenance_requests WHERE id = ?', [requestId]);
+  if (rows.length > 0) {
+    await pool.query(
+      "UPDATE maintenance_requests SET status = 'rejected', approved_by = ? WHERE id = ?",
+      [approvedBy, requestId]
+    );
+    await logActivity(approvedBy, `Rejected maintenance request #${requestId}`);
+    await notify(rows[0].raised_by, 'maintenance', `Your maintenance request #${requestId} was rejected.`);
+  }
 }
 
 async function assignTechnician(requestId, technicianName) {
@@ -96,8 +106,8 @@ async function markInProgress(requestId) {
   await pool.query("UPDATE maintenance_requests SET status = 'in_progress' WHERE id = ?", [requestId]);
 }
 
-// Resolving flips the asset back to Available.
-async function resolveRequest(requestId) {
+// Resolving flips the asset back to Allocated (if active allocation exists) or Available.
+async function resolveRequest(requestId, resolvedBy) {
   const connection = await pool.getConnection();
 
   try {
@@ -126,14 +136,25 @@ async function resolveRequest(requestId) {
       [req.asset_id]
     );
 
+    // Check if an active or overdue allocation exists for this asset to restore correct status
+    const [activeAllocations] = await connection.query(
+      "SELECT id FROM allocations WHERE asset_id = ? AND status IN ('active', 'overdue')",
+      [req.asset_id]
+    );
+
+    const resultingAssetStatus = activeAllocations.length > 0 ? 'allocated' : 'available';
+
     await connection.query(
       "UPDATE maintenance_requests SET status = 'resolved', resolved_at = NOW() WHERE id = ?",
       [requestId]
     );
     await connection.query(
-      "UPDATE assets SET status = 'available' WHERE id = ?",
-      [req.asset_id]
+      "UPDATE assets SET status = ? WHERE id = ?",
+      [resultingAssetStatus, req.asset_id]
     );
+
+    await logActivity(resolvedBy || req.raised_by, `Resolved maintenance request #${requestId} for asset #${req.asset_id}`, connection);
+    await notify(req.raised_by, 'maintenance', `Maintenance request #${requestId} for asset #${req.asset_id} has been resolved.`, connection);
 
     await connection.commit();
 

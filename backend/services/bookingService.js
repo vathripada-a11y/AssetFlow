@@ -1,6 +1,7 @@
 const pool = require('../config/db');
 const hasOverlap = require('../utils/overlapChecker');
 const { validateBookingTimes } = require('../utils/validators');
+const { logActivity } = require('./notificationService');
 
 async function createBooking({ assetId, bookedBy, startTime, endTime }) {
   const timeError = validateBookingTimes(startTime, endTime);
@@ -32,6 +33,12 @@ async function createBooking({ assetId, bookedBy, startTime, endTime }) {
       throw err;
     }
 
+    if (['under_maintenance', 'lost', 'retired', 'disposed'].includes(assetRows[0].status)) {
+      const err = new Error(`Asset cannot be booked because its current status is '${assetRows[0].status}'.`);
+      err.status = 409;
+      throw err;
+    }
+
     const overlapping = await hasOverlap(connection, assetId, startTime, endTime);
     if (overlapping) {
       const err = new Error('This time slot overlaps with an existing booking for this resource.');
@@ -44,6 +51,8 @@ async function createBooking({ assetId, bookedBy, startTime, endTime }) {
        VALUES (?, ?, ?, ?, 'upcoming')`,
       [assetId, bookedBy, startTime, endTime]
     );
+
+    await logActivity(bookedBy, `Booked resource asset #${assetId} (${startTime} to ${endTime})`, connection);
 
     await connection.commit();
     return { id: result.insertId };
@@ -73,18 +82,21 @@ async function cancelBooking(bookingId, requester) {
     typeof requester === 'object' &&
     (requester.role === 'admin' || requester.role === 'asset_manager');
 
+  const requesterId = typeof requester === 'object' ? requester.id : requester;
+
   if (isManagerOrAdmin) {
     await pool.query(
       "UPDATE bookings SET status = 'cancelled' WHERE id = ?",
       [bookingId]
     );
   } else {
-    const requesterId = typeof requester === 'object' ? requester.id : requester;
     await pool.query(
       "UPDATE bookings SET status = 'cancelled' WHERE id = ? AND booked_by = ?",
       [bookingId, requesterId]
     );
   }
+
+  await logActivity(requesterId, `Cancelled booking #${bookingId}`);
 }
 
 module.exports = { createBooking, listBookingsForAsset, cancelBooking };

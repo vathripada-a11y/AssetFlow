@@ -48,10 +48,10 @@ router.get('/:id/discrepancy-report', async (req, res) => {
 
 router.put('/:id/close', requireRole(['admin']), async (req, res) => {
   try {
-    await auditService.closeAuditCycle(req.params.id);
+    await auditService.closeAuditCycle(req.params.id, req.user.id);
     res.json({ message: 'Audit cycle closed.' });
   } catch (err) {
-    res.status(500).json({ error: 'Could not close audit cycle.' });
+    res.status(err.status || 500).json({ error: err.message || 'Could not close audit cycle.' });
   }
 });
 

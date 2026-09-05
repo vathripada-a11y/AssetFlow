@@ -1,5 +1,6 @@
 const pool = require('../config/db');
 const generateAssetTag = require('../utils/assetTagGenerator');
+const { logActivity, notify } = require('./notificationService');
 
 // ---- Asset Registration & Directory ----
 async function registerAsset(data) {
@@ -21,6 +22,10 @@ async function registerAsset(data) {
         !!data.isBookable, data.photoUrl || null
       ]
     );
+
+    if (data.registeredBy) {
+      await logActivity(data.registeredBy, `Registered asset ${assetTag} (${data.name})`, connection);
+    }
 
     await connection.commit();
     return { id: result.insertId, assetTag };
@@ -71,11 +76,32 @@ async function getAssetHistory(assetId) {
      WHERE al.asset_id = ? ORDER BY al.allocated_at DESC`,
     [assetId]
   );
-  const [maintenance] = await pool.query(
-    'SELECT * FROM maintenance_requests WHERE asset_id = ? ORDER BY created_at DESC',
+  const [transfers] = await pool.query(
+    `SELECT tr.*, e1.name AS requested_by_name, e2.name AS current_holder_name, e3.name AS approved_by_name
+     FROM transfer_requests tr
+     LEFT JOIN employees e1 ON tr.requested_by = e1.id
+     LEFT JOIN employees e2 ON tr.current_holder_id = e2.id
+     LEFT JOIN employees e3 ON tr.approved_by = e3.id
+     WHERE tr.asset_id = ? ORDER BY tr.created_at DESC`,
     [assetId]
   );
-  return { allocations, maintenance };
+  const [maintenance] = await pool.query(
+    `SELECT m.*, e1.name AS raised_by_name, e2.name AS approved_by_name
+     FROM maintenance_requests m
+     LEFT JOIN employees e1 ON m.raised_by = e1.id
+     LEFT JOIN employees e2 ON m.approved_by = e2.id
+     WHERE m.asset_id = ? ORDER BY m.created_at DESC`,
+    [assetId]
+  );
+  const [auditFindings] = await pool.query(
+    `SELECT af.*, ac.scope_location, e.name AS recorded_by_name
+     FROM audit_findings af
+     LEFT JOIN audit_cycles ac ON af.audit_cycle_id = ac.id
+     LEFT JOIN employees e ON af.recorded_by = e.id
+     WHERE af.asset_id = ? ORDER BY af.created_at DESC`,
+    [assetId]
+  );
+  return { allocations, transfers, maintenance, auditFindings };
 }
 
 // ---- Allocation & Transfer ----
@@ -87,7 +113,8 @@ async function allocateAsset({
   assetId,
   employeeId,
   departmentId,
-  expectedReturnDate
+  expectedReturnDate,
+  requestingUser
 }) {
   const connection = await pool.getConnection();
 
@@ -97,7 +124,7 @@ async function allocateAsset({
     // Lock the asset row so concurrent allocation requests
     // cannot modify the same asset simultaneously.
     const [assetRows] = await connection.query(
-      `SELECT id, status
+      `SELECT id, name, status
        FROM assets
        WHERE id = ?
        FOR UPDATE`,
@@ -107,6 +134,12 @@ async function allocateAsset({
     if (assetRows.length === 0) {
       const err = new Error('Asset not found.');
       err.status = 404;
+      throw err;
+    }
+
+    if (['under_maintenance', 'lost', 'retired', 'disposed'].includes(assetRows[0].status)) {
+      const err = new Error(`Asset cannot be allocated because its current status is '${assetRows[0].status}'.`);
+      err.status = 409;
       throw err;
     }
 
@@ -167,7 +200,11 @@ async function allocateAsset({
        WHERE id = ?`,
       [assetId]
     );
-    
+
+    await logActivity(requestingUser?.id || employeeId, `Allocated asset #${assetId}`, connection);
+    if (employeeId) {
+      await notify(employeeId, 'allocation', `Asset #${assetId} has been allocated to you.`, connection);
+    }
 
     await connection.commit();
 
@@ -194,10 +231,16 @@ async function requestTransfer({ assetId, requestedBy }) {
      VALUES (?, ?, ?, 'requested')`,
     [assetId, requestedBy, currentHolderId]
   );
+
+  await logActivity(requestedBy, `Submitted transfer request #${result.insertId} for asset #${assetId}`);
+  if (currentHolderId) {
+    await notify(currentHolderId, 'transfer_request', `A transfer request #${result.insertId} was raised for an asset assigned to you.`);
+  }
+
   return { id: result.insertId };
 }
 
-async function approveTransfer(transferId, approvedBy) {
+async function approveTransfer(transferId, approvedBy, requestingUser) {
   const connection = await pool.getConnection();
 
   try {
@@ -303,6 +346,12 @@ async function approveTransfer(transferId, approvedBy) {
       [approvedBy, transferId]
     );
 
+    await logActivity(approvedBy, `Approved transfer request #${transferId} for asset #${transfer.asset_id}`, connection);
+    await notify(transfer.requested_by, 'transfer', `Your transfer request for asset #${transfer.asset_id} was approved.`, connection);
+    if (transfer.current_holder_id) {
+      await notify(transfer.current_holder_id, 'transfer', `Asset #${transfer.asset_id} held by you has been reallocated.`, connection);
+    }
+
     await connection.commit();
 
   } catch (err) {
@@ -314,7 +363,7 @@ async function approveTransfer(transferId, approvedBy) {
   }
 }
 
-async function returnAsset(allocationId, { conditionNotes }) {
+async function returnAsset(allocationId, { conditionNotes }, requestingUser) {
   const connection = await pool.getConnection();
 
   try {
@@ -398,6 +447,8 @@ async function returnAsset(allocationId, { conditionNotes }) {
        WHERE id = ?`,
       [allocation.asset_id]
     );
+
+    await logActivity(requestingUser?.id || allocation.employee_id, `Returned asset #${allocation.asset_id} (allocation #${allocationId})`, connection);
 
     await connection.commit();
 
