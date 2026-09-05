@@ -3,18 +3,22 @@ import { Link, useParams } from 'react-router-dom';
 import client from '../api/client';
 import AssetStatusBadge from '../components/AssetStatusBadge';
 import AssetHistoryModal from '../components/AssetHistoryModal';
+import { TableSkeleton } from '../components/SkeletonLoader';
 
 export default function AssetDetails() {
   const { id } = useParams();
   const [asset, setAsset] = useState(null);
   const [history, setHistory] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showHistoryModal, setShowHistoryModal] = useState(false);
 
   useEffect(() => {
+    setLoading(true);
     client.get(`/assets/${id}`)
       .then((res) => setAsset(res.data))
-      .catch((err) => setError(err.message));
+      .catch((err) => setError(err.message))
+      .finally(() => setLoading(false));
 
     client.get(`/assets/${id}/history`)
       .then((res) => setHistory(res.data))
@@ -24,35 +28,40 @@ export default function AssetDetails() {
   const activeAllocation = history?.allocations?.find((a) => a.status === 'active' || a.status === 'overdue');
 
   return (
-    <div className="asset-details-page" style={{ maxWidth: 1100, margin: '0 auto', paddingBottom: 40 }}>
-      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
+    <div className="asset-details-page">
+      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24, flexWrap: 'wrap', gap: 16 }}>
         <div>
           <p className="eyebrow">Asset Specification</p>
-          <h2 className="page-heading">{asset?.name || 'Loading asset details...'}</h2>
+          <h1 className="page-heading">{asset?.name || 'Asset Details'}</h1>
           <p className="page-subtitle">Detailed allocation records, condition status, and audit trail for this resource.</p>
         </div>
         <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
           <button
             onClick={() => setShowHistoryModal(true)}
             className="btn btn-ghost"
-            style={{ fontSize: 14 }}
+            style={{ fontSize: 13 }}
+            disabled={!asset}
           >
             📜 Full Lifecycle History
           </button>
-          <Link to="/assets" className="text-link">← Back to catalog</Link>
+          <Link to="/assets" className="btn btn-ghost" style={{ fontSize: 13, textDecoration: 'none' }}>
+            ← Back to catalog
+          </Link>
         </div>
       </div>
 
-      {error && <p className="form-error" style={{ marginBottom: 16 }}>{error}</p>}
+      {error && <div className="alert alert-error">⚠️ {error}</div>}
 
-      {asset ? (
+      {loading ? (
+        <TableSkeleton rows={4} cols={2} />
+      ) : asset ? (
         <div className="details-card card">
-          <div className="details-summary" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, paddingBottom: 20, borderBottom: '1px solid rgba(20,12,60,0.06)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, paddingBottom: 20, borderBottom: '1px solid var(--border-light)', flexWrap: 'wrap', gap: 16 }}>
             <div>
-              <span className="hero-tag" style={{ fontSize: 13, background: '#ede9fe', color: '#6d28d9', padding: '4px 10px', borderRadius: 6, fontWeight: 700 }}>
-                {asset.asset_tag}
+              <span style={{ fontSize: 13, background: '#f1eaff', color: '#6d28d9', padding: '4px 12px', borderRadius: 6, fontWeight: 800, letterSpacing: '0.04em' }}>
+                TAG: {asset.asset_tag}
               </span>
-              <h3 style={{ margin: '8px 0 0', fontSize: 24, color: '#1f1644' }}>{asset.name}</h3>
+              <h2 style={{ margin: '10px 0 0', fontSize: 24, color: '#1f1644', fontWeight: 800 }}>{asset.name}</h2>
             </div>
             <AssetStatusBadge status={asset.availabilityStatus} quantity={asset.quantity} />
           </div>
@@ -71,31 +80,31 @@ export default function AssetDetails() {
             />
           </div>
 
-          {/* Quick Stats Summary */}
+          {/* Lifecycle Overview Metrics */}
           {history && (
-            <div style={{ background: '#f6f3ff', padding: 20, borderRadius: 12, display: 'flex', gap: 24, flexWrap: 'wrap' }}>
+            <div style={{ background: '#f6f3ff', padding: 20, borderRadius: 14, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 20, border: '1px solid rgba(123,91,255,0.1)' }}>
               <div>
-                <span style={{ fontSize: 12, color: '#6b5fa6', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total Allocations</span>
-                <div style={{ fontSize: 20, fontWeight: 700, color: '#1f1644' }}>{history.allocations?.length || 0}</div>
+                <span style={{ fontSize: 11, color: '#6b5fa6', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700 }}>Allocations</span>
+                <div style={{ fontSize: 22, fontWeight: 800, color: '#1f1644', marginTop: 4 }}>{history.allocations?.length || 0}</div>
               </div>
               <div>
-                <span style={{ fontSize: 12, color: '#6b5fa6', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Maintenance Events</span>
-                <div style={{ fontSize: 20, fontWeight: 700, color: '#1f1644' }}>{history.maintenance?.length || 0}</div>
+                <span style={{ fontSize: 11, color: '#6b5fa6', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700 }}>Maintenance Tickets</span>
+                <div style={{ fontSize: 22, fontWeight: 800, color: '#1f1644', marginTop: 4 }}>{history.maintenance?.length || 0}</div>
               </div>
               <div>
-                <span style={{ fontSize: 12, color: '#6b5fa6', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Transfer Requests</span>
-                <div style={{ fontSize: 20, fontWeight: 700, color: '#1f1644' }}>{history.transfers?.length || 0}</div>
+                <span style={{ fontSize: 11, color: '#6b5fa6', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700 }}>Transfers</span>
+                <div style={{ fontSize: 22, fontWeight: 800, color: '#1f1644', marginTop: 4 }}>{history.transfers?.length || 0}</div>
               </div>
               <div>
-                <span style={{ fontSize: 12, color: '#6b5fa6', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Audit Findings</span>
-                <div style={{ fontSize: 20, fontWeight: 700, color: '#1f1644' }}>{history.auditFindings?.length || 0}</div>
+                <span style={{ fontSize: 11, color: '#6b5fa6', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700 }}>Audit Records</span>
+                <div style={{ fontSize: 22, fontWeight: 800, color: '#1f1644', marginTop: 4 }}>{history.auditFindings?.length || 0}</div>
               </div>
             </div>
           )}
         </div>
       ) : (
         <div className="card" style={{ padding: 40, textAlign: 'center', color: '#6b5fa6' }}>
-          Loading asset specification...
+          Asset specification not found.
         </div>
       )}
 
@@ -112,10 +121,10 @@ export default function AssetDetails() {
 function AssetField({ title, value }) {
   return (
     <div className="detail-card">
-      <div className="field-title" style={{ fontSize: 12, color: '#6b5fa6', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>
+      <div className="field-title" style={{ fontSize: 11, color: '#6b5fa6', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700, marginBottom: 6 }}>
         {title}
       </div>
-      <div className="field-value" style={{ fontSize: 16, fontWeight: 700, color: '#1f1644' }}>
+      <div className="field-value" style={{ fontSize: 15, fontWeight: 700, color: '#1f1644' }}>
         {value}
       </div>
     </div>

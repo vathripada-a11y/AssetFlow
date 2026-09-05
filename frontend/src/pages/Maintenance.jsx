@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import client from '../api/client';
+import EmptyState from '../components/EmptyState';
+import { TableSkeleton } from '../components/SkeletonLoader';
 import { useAuth } from '../context/AuthContext';
 
 export default function Maintenance() {
@@ -20,8 +22,6 @@ export default function Maintenance() {
 
   const [submitting, setSubmitting] = useState(false);
   const [actionId, setActionId] = useState(null);
-
-  // Technician assignment inline
   const [techInput, setTechInput] = useState({});
 
   const { user } = useAuth();
@@ -34,7 +34,7 @@ export default function Maintenance() {
         setRequests(res.data);
         setError('');
       })
-      .catch((err) => setError(err.message || 'Failed to load maintenance requests.'))
+      .catch((err) => setError(err.message || 'Failed to load maintenance tickets.'))
       .finally(() => setLoading(false));
 
     client.get('/assets').then((r) => setAssets(r.data)).catch(() => {});
@@ -57,7 +57,7 @@ export default function Maintenance() {
         issueDescription,
         priority
       });
-      setMessage('Maintenance request raised successfully.');
+      setMessage('Maintenance ticket raised successfully.');
       setShowRaiseModal(false);
       setAssetId('');
       setIssueDescription('');
@@ -78,7 +78,7 @@ export default function Maintenance() {
         await client.put(`/maintenance/${id}/assign-technician`, { technicianName: extraPayload.technicianName });
       }
       await client.put(`/maintenance/${id}/${action}`);
-      setMessage(`Maintenance request updated.`);
+      setMessage(`Maintenance ticket status updated.`);
       loadData();
     } catch (err) {
       setError(err.message || `Failed to process ${action}.`);
@@ -90,7 +90,7 @@ export default function Maintenance() {
   const filteredRequests = requests
     ? requests.filter((r) => {
         if (activeTab === 'pending') return r.status === 'pending';
-        if (activeTab === 'approved') return r.status === 'approved';
+        if (activeTab === 'approved') return r.status === 'approved' || r.status === 'technician_assigned';
         if (activeTab === 'in_progress') return r.status === 'in_progress' || r.status === 'in-progress';
         if (activeTab === 'resolved') return r.status === 'resolved';
         return true;
@@ -98,12 +98,12 @@ export default function Maintenance() {
     : [];
 
   return (
-    <div className="assets-page" style={{ maxWidth: 1100, margin: '0 auto', paddingBottom: 40 }}>
+    <div className="assets-page">
       <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24, flexWrap: 'wrap', gap: 16 }}>
         <div>
           <p className="eyebrow">Maintenance & Repair</p>
-          <h2 className="page-heading">Maintenance Operations</h2>
-          <p className="page-subtitle">Report hardware issues, track repairs, assign technicians, and restore equipment to service.</p>
+          <h1 className="page-heading">Maintenance Tickets</h1>
+          <p className="page-subtitle">Report hardware issues, track repair progress, assign technicians, and restore equipment.</p>
         </div>
         <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
           <button
@@ -111,14 +111,16 @@ export default function Maintenance() {
             className="btn btn-primary"
             style={{ width: 'auto' }}
           >
-            + Raise Request
+            + Raise Maintenance Request
           </button>
-          <Link to="/dashboard" className="text-link">← Dashboard</Link>
+          <Link to="/dashboard" className="btn btn-ghost" style={{ fontSize: 13, textDecoration: 'none' }}>
+            ← Dashboard
+          </Link>
         </div>
       </div>
 
-      {error && <p className="form-error" style={{ marginBottom: 16 }}>{error}</p>}
-      {message && <p className="form-success" style={{ marginBottom: 16 }}>{message}</p>}
+      {error && <div className="alert alert-error">⚠️ {error}</div>}
+      {message && <div className="alert alert-success">✓ {message}</div>}
 
       {/* Filter Tabs */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
@@ -128,7 +130,7 @@ export default function Maintenance() {
             onClick={() => setActiveTab(tab)}
             className="btn"
             style={{
-              padding: '6px 14px',
+              padding: '7px 16px',
               fontSize: 13,
               borderRadius: 8,
               background: activeTab === tab ? '#7b5bff' : '#ffffff',
@@ -143,20 +145,18 @@ export default function Maintenance() {
 
       {/* Maintenance Table */}
       {loading ? (
-        <div className="card" style={{ padding: 40, textAlign: 'center', color: '#6b5fa6' }}>
-          Loading maintenance requests...
-        </div>
+        <TableSkeleton rows={5} cols={8} />
       ) : filteredRequests.length > 0 ? (
         <div className="table-card card">
           <table className="asset-table">
             <thead>
               <tr>
-                <th>ID</th>
-                <th>Asset</th>
+                <th>Ticket ID</th>
+                <th>Asset Tag / Name</th>
                 <th>Issue Description</th>
                 <th>Priority</th>
                 <th>Status</th>
-                <th>Technician</th>
+                <th>Assigned Technician</th>
                 <th>Date Raised</th>
                 {isManagerOrAdmin && <th>Actions</th>}
               </tr>
@@ -169,7 +169,7 @@ export default function Maintenance() {
                     <strong>{r.asset_tag}</strong>
                     <div style={{ fontSize: 12, color: '#6b5fa6' }}>{r.asset_name}</div>
                   </td>
-                  <td style={{ maxWidth: 220 }}>{r.issue_description}</td>
+                  <td style={{ maxWidth: 240, lineHeight: 1.4 }}>{r.issue_description}</td>
                   <td>
                     <span className={`badge ${
                       r.priority === 'high'
@@ -182,8 +182,14 @@ export default function Maintenance() {
                     </span>
                   </td>
                   <td>
-                    <span className="badge badge-available">
-                      {r.status}
+                    <span className={`badge ${
+                      r.status === 'resolved'
+                        ? 'badge-available'
+                        : r.status === 'rejected'
+                        ? 'badge-unavailable'
+                        : 'badge-allocated'
+                    }`}>
+                      {r.status.replace('_', ' ')}
                     </span>
                   </td>
                   <td>{r.assigned_technician || r.technician_name || 'Unassigned'}</td>
@@ -199,29 +205,30 @@ export default function Maintenance() {
                               onClick={() => handleAction(r.id, 'approve')}
                               disabled={actionId === r.id}
                               className="btn btn-primary"
-                              style={{ padding: '4px 8px', fontSize: 12, width: 'auto' }}
+                              style={{ padding: '4px 10px', fontSize: 12, width: 'auto' }}
                             >
                               Approve
                             </button>
                             <button
                               onClick={() => handleAction(r.id, 'reject')}
                               disabled={actionId === r.id}
-                              className="btn btn-ghost"
-                              style={{ padding: '4px 8px', fontSize: 12 }}
+                              className="btn btn-danger"
+                              style={{ padding: '4px 10px', fontSize: 12 }}
                             >
                               Reject
                             </button>
                           </>
                         )}
 
-                        {r.status === 'approved' && (
-                          <div style={{ display: 'flex', gap: 4 }}>
+                        {(r.status === 'approved' || r.status === 'technician_assigned') && (
+                          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                             <select
                               value={techInput[r.id] || ''}
                               onChange={(e) => setTechInput({ ...techInput, [r.id]: e.target.value })}
-                              style={{ fontSize: 12, padding: 4, borderRadius: 6, border: '1px solid #ccc' }}
+                              className="form-input"
+                              style={{ fontSize: 12, padding: '4px 8px', width: 'auto' }}
                             >
-                              <option value="">Choose Tech</option>
+                              <option value="">Select Tech</option>
                               {technicians.map((t) => (
                                 <option key={t.id} value={t.name}>{t.name}</option>
                               ))}
@@ -230,7 +237,7 @@ export default function Maintenance() {
                               onClick={() => handleAction(r.id, 'in-progress', { technicianName: techInput[r.id] })}
                               disabled={actionId === r.id}
                               className="btn btn-primary"
-                              style={{ padding: '4px 8px', fontSize: 12, width: 'auto' }}
+                              style={{ padding: '4px 10px', fontSize: 12, width: 'auto' }}
                             >
                               Start
                             </button>
@@ -242,7 +249,7 @@ export default function Maintenance() {
                             onClick={() => handleAction(r.id, 'resolve')}
                             disabled={actionId === r.id}
                             className="btn btn-primary"
-                            style={{ padding: '4px 8px', fontSize: 12, width: 'auto', background: '#16a34a' }}
+                            style={{ padding: '4px 10px', fontSize: 12, width: 'auto', background: '#16a34a' }}
                           >
                             Resolve
                           </button>
@@ -256,16 +263,20 @@ export default function Maintenance() {
           </table>
         </div>
       ) : (
-        <div className="card" style={{ padding: 40, textAlign: 'center', color: '#6b5fa6' }}>
-          No maintenance requests found in this category.
+        <div className="card">
+          <EmptyState
+            icon="🔧"
+            title="No maintenance tickets"
+            description="No maintenance tickets found for the selected status tab."
+          />
         </div>
       )}
 
       {/* Modal: Raise Maintenance Request */}
       {showRaiseModal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'grid', placeItems: 'center', zIndex: 200, padding: 20 }}>
-          <div className="card" style={{ width: 'min(100%, 480px)', padding: 32 }}>
-            <h3 style={{ marginTop: 0, color: '#1f1644' }}>Raise Maintenance Request</h3>
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <h3 style={{ marginTop: 0, color: '#1f1644', fontSize: 20 }}>Raise Maintenance Request</h3>
             <form onSubmit={handleRaiseRequest} className="auth-form">
               <div className="form-row">
                 <label>Select Asset</label>
@@ -298,11 +309,11 @@ export default function Maintenance() {
               </div>
 
               <div className="form-row">
-                <label>Issue Description & Symptoms</label>
+                <label>Issue Symptoms & Details</label>
                 <textarea
                   rows={3}
                   required
-                  placeholder="Describe hardware malfunction, physical damage, or error code..."
+                  placeholder="Describe hardware malfunction, physical damage, or failure..."
                   value={issueDescription}
                   onChange={(e) => setIssueDescription(e.target.value)}
                   className="form-input"

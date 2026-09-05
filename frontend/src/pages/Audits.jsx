@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import client from '../api/client';
+import EmptyState from '../components/EmptyState';
+import { TableSkeleton } from '../components/SkeletonLoader';
 import { useAuth } from '../context/AuthContext';
 
 export default function Audits() {
@@ -9,13 +11,13 @@ export default function Audits() {
   const [discrepancyReport, setDiscrepancyReport] = useState(null);
   const [assets, setAssets] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [reportLoading, setReportLoading] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
 
   // Form states
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newCycleName, setNewCycleName] = useState('');
-  const [newCycleScope, setNewCycleScope] = useState('full');
 
   const [showFindingModal, setShowFindingModal] = useState(false);
   const [findingAssetId, setFindingAssetId] = useState('');
@@ -36,6 +38,7 @@ export default function Audits() {
         if (res.data.length > 0 && !selectedCycleId) {
           setSelectedCycleId(res.data[0].id);
         }
+        setError('');
       })
       .catch((err) => setError(err.message || 'Failed to load audit cycles.'))
       .finally(() => setLoading(false));
@@ -52,9 +55,11 @@ export default function Audits() {
 
   useEffect(() => {
     if (selectedCycleId) {
+      setReportLoading(true);
       client.get(`/audits/${selectedCycleId}/discrepancy-report`)
         .then((res) => setDiscrepancyReport(res.data))
-        .catch(() => setDiscrepancyReport(null));
+        .catch(() => setDiscrepancyReport(null))
+        .finally(() => setReportLoading(false));
     }
   }, [selectedCycleId]);
 
@@ -95,7 +100,6 @@ export default function Audits() {
       setShowFindingModal(false);
       setFindingAssetId('');
       setFindingNotes('');
-      // Reload report
       const res = await client.get(`/audits/${selectedCycleId}/discrepancy-report`);
       setDiscrepancyReport(res.data);
     } catch (err) {
@@ -106,7 +110,7 @@ export default function Audits() {
   }
 
   async function handleCloseCycle(id) {
-    if (!window.confirm('Are you sure you want to close this audit cycle? This action will finalize all discrepancy findings.')) {
+    if (!window.confirm('Are you sure you want to close this audit cycle? Discrepancy findings will be finalized and confirmed missing assets will be marked lost.')) {
       return;
     }
     setSubmitting(true);
@@ -126,12 +130,12 @@ export default function Audits() {
   const selectedCycle = cycles.find((c) => c.id === Number(selectedCycleId));
 
   return (
-    <div className="assets-page" style={{ maxWidth: 1100, margin: '0 auto', paddingBottom: 40 }}>
-      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
+    <div className="assets-page">
+      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24, flexWrap: 'wrap', gap: 16 }}>
         <div>
           <p className="eyebrow">Audit & Governance</p>
-          <h2 className="page-heading">Audit Cycles & Discrepancy Tracking</h2>
-          <p className="page-subtitle">Conduct periodic inventory audits, log physical verification findings, and resolve discrepancies.</p>
+          <h1 className="page-heading">Audit Cycles & Compliance</h1>
+          <p className="page-subtitle">Conduct inventory physical audits, record verification findings, and resolve discrepancy reports.</p>
         </div>
         <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
           {isAdmin && (
@@ -143,12 +147,14 @@ export default function Audits() {
               + New Audit Cycle
             </button>
           )}
-          <Link to="/dashboard" className="text-link">← Dashboard</Link>
+          <Link to="/dashboard" className="btn btn-ghost" style={{ fontSize: 13, textDecoration: 'none' }}>
+            ← Dashboard
+          </Link>
         </div>
       </div>
 
-      {error && <p className="form-error" style={{ marginBottom: 16 }}>{error}</p>}
-      {message && <p className="form-success" style={{ marginBottom: 16 }}>{message}</p>}
+      {error && <div className="alert alert-error">⚠️ {error}</div>}
+      {message && <div className="alert alert-success">✓ {message}</div>}
 
       {/* Cycle selector cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16, marginBottom: 24 }}>
@@ -160,56 +166,60 @@ export default function Audits() {
             style={{
               padding: 20,
               cursor: 'pointer',
-              border: selectedCycleId === c.id ? '2px solid #7b5bff' : '1px solid rgba(20,12,60,0.06)',
-              background: selectedCycleId === c.id ? '#f6f3ff' : '#fff'
+              border: selectedCycleId === c.id ? '2px solid #7b5bff' : '1px solid var(--border-light)',
+              background: selectedCycleId === c.id ? '#f6f3ff' : '#ffffff'
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-              <strong style={{ fontSize: 16, color: '#1f1644' }}>{c.name || c.title || `Cycle #${c.id}`}</strong>
-              <span className={`badge ${c.status === 'in_progress' || c.status === 'active' ? 'badge-available' : 'badge-unavailable'}`}>
+              <strong style={{ fontSize: 16, color: '#1f1644' }}>{c.name || c.scope_location || `Cycle #${c.id}`}</strong>
+              <span className={`badge ${c.status === 'open' || c.status === 'in_progress' ? 'badge-available' : 'badge-unavailable'}`}>
                 {c.status}
               </span>
             </div>
             <div style={{ fontSize: 13, color: '#6b5fa6' }}>
-              Scope: {c.scope || 'Full'} • Created: {new Date(c.created_at).toLocaleDateString()}
+              Created: {new Date(c.start_date || c.created_at).toLocaleDateString()}
             </div>
           </div>
         ))}
         {cycles.length === 0 && !loading && (
-          <div className="card" style={{ padding: 20, gridColumn: '1 / -1', textAlign: 'center', color: '#6b5fa6' }}>
-            No audit cycles available yet.
+          <div className="card" style={{ gridColumn: '1 / -1' }}>
+            <EmptyState
+              icon="📋"
+              title="No audit cycles active"
+              description="No physical inventory audit cycles have been created yet."
+            />
           </div>
         )}
       </div>
 
       {/* Selected Audit Details & Discrepancy Report */}
       {selectedCycle && (
-        <div className="card" style={{ padding: 24, marginBottom: 24 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, marginBottom: 20 }}>
+        <div className="card" style={{ padding: 24 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, marginBottom: 20, paddingBottom: 16, borderBottom: '1px solid var(--border-light)' }}>
             <div>
-              <h3 style={{ margin: 0, fontSize: 20, color: '#1f1644' }}>
-                {selectedCycle.name || selectedCycle.title || `Cycle #${selectedCycle.id}`}
-              </h3>
+              <h2 style={{ margin: 0, fontSize: 20, color: '#1f1644', fontWeight: 700 }}>
+                {selectedCycle.name || selectedCycle.scope_location || `Audit Cycle #${selectedCycle.id}`}
+              </h2>
               <p style={{ margin: '4px 0 0', fontSize: 14, color: '#6b5fa6' }}>
-                Discrepancy report and verification records.
+                Discrepancy findings and physical verification tracking.
               </p>
             </div>
             <div style={{ display: 'flex', gap: 12 }}>
-              {isManagerOrAdmin && (selectedCycle.status === 'in_progress' || selectedCycle.status === 'active') && (
+              {isManagerOrAdmin && selectedCycle.status === 'open' && (
                 <button
                   onClick={() => setShowFindingModal(true)}
                   className="btn btn-primary"
-                  style={{ width: 'auto', padding: '8px 16px', fontSize: 14 }}
+                  style={{ width: 'auto', padding: '8px 16px', fontSize: 13 }}
                 >
                   + Record Finding
                 </button>
               )}
-              {isAdmin && (selectedCycle.status === 'in_progress' || selectedCycle.status === 'active') && (
+              {isAdmin && selectedCycle.status === 'open' && (
                 <button
                   onClick={() => handleCloseCycle(selectedCycle.id)}
                   disabled={submitting}
-                  className="btn btn-ghost"
-                  style={{ padding: '8px 16px', fontSize: 14, color: '#dc2626', borderColor: '#fca5a5' }}
+                  className="btn btn-danger"
+                  style={{ padding: '8px 16px', fontSize: 13 }}
                 >
                   Close Audit Cycle
                 </button>
@@ -217,15 +227,16 @@ export default function Audits() {
             </div>
           </div>
 
-          {discrepancyReport ? (
+          {reportLoading ? (
+            <TableSkeleton rows={4} cols={6} />
+          ) : discrepancyReport && (discrepancyReport.findings || discrepancyReport).length > 0 ? (
             <div className="table-card">
               <table className="asset-table">
                 <thead>
                   <tr>
                     <th>Asset Tag</th>
                     <th>Asset Name</th>
-                    <th>System Status</th>
-                    <th>Finding Result</th>
+                    <th>Audit Result</th>
                     <th>Notes</th>
                     <th>Recorded By</th>
                     <th>Timestamp</th>
@@ -236,7 +247,6 @@ export default function Audits() {
                     <tr key={idx}>
                       <td><strong>{item.asset_tag}</strong></td>
                       <td>{item.asset_name || item.name}</td>
-                      <td><span className="badge badge-available">{item.system_status || item.availabilityStatus || 'Active'}</span></td>
                       <td>
                         <span className={`badge ${
                           item.result === 'verified'
@@ -245,60 +255,47 @@ export default function Audits() {
                             ? 'badge-unavailable'
                             : 'badge-low_stock'
                         }`}>
-                          {item.result || 'Pending Check'}
+                          {item.result}
                         </span>
                       </td>
                       <td>{item.notes || '—'}</td>
-                      <td>{item.recorded_by_name || 'System'}</td>
-                      <td>{item.created_at ? new Date(item.created_at).toLocaleString() : '—'}</td>
-                    </tr>
-                  ))}
-                  {(!discrepancyReport || discrepancyReport.length === 0) && (
-                    <tr>
-                      <td colSpan={7} style={{ textAlign: 'center', color: '#6b5fa6' }}>
-                        No audit findings logged for this cycle yet.
+                      <td>{item.recorded_by_name || 'Auditor'}</td>
+                      <td style={{ fontSize: 13, color: '#6b5fa6' }}>
+                        {item.created_at ? new Date(item.created_at).toLocaleString() : '—'}
                       </td>
                     </tr>
-                  )}
+                  ))}
                 </tbody>
               </table>
             </div>
           ) : (
-            <p style={{ color: '#6b5fa6' }}>Loading discrepancy report...</p>
+            <EmptyState
+              icon="✓"
+              title="No discrepancy findings logged"
+              description="No audit findings have been recorded for this cycle yet."
+            />
           )}
         </div>
       )}
 
       {/* Modal: Create Audit Cycle */}
       {showCreateModal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'grid', placeItems: 'center', zIndex: 200, padding: 20 }}>
-          <div className="card" style={{ width: 'min(100%, 480px)', padding: 32 }}>
-            <h3 style={{ marginTop: 0, color: '#1f1644' }}>Create Audit Cycle</h3>
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <h3 style={{ marginTop: 0, color: '#1f1644', fontSize: 20 }}>Create Audit Cycle</h3>
             <form onSubmit={handleCreateCycle} className="auth-form">
               <div className="form-row">
-                <label>Cycle Title / Name</label>
+                <label>Audit Location / Scope Title</label>
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Q3 IT Equipment Physical Audit"
+                  placeholder="e.g. Q3 IT Hardware Physical Verification"
                   value={newCycleName}
                   onChange={(e) => setNewCycleName(e.target.value)}
                   className="form-input"
                 />
               </div>
-              <div className="form-row">
-                <label>Audit Scope</label>
-                <select
-                  value={newCycleScope}
-                  onChange={(e) => setNewCycleScope(e.target.value)}
-                  className="form-input"
-                >
-                  <option value="full">Full Inventory</option>
-                  <option value="electronics">Electronics Only</option>
-                  <option value="furniture">Furniture Only</option>
-                  <option value="vehicles">Vehicles Only</option>
-                </select>
-              </div>
+
               <div style={{ display: 'flex', gap: 12, marginTop: 16 }}>
                 <button type="submit" disabled={submitting} className="btn btn-primary">
                   {submitting ? 'Creating...' : 'Create Audit Cycle'}
@@ -314,9 +311,9 @@ export default function Audits() {
 
       {/* Modal: Record Audit Finding */}
       {showFindingModal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'grid', placeItems: 'center', zIndex: 200, padding: 20 }}>
-          <div className="card" style={{ width: 'min(100%, 480px)', padding: 32 }}>
-            <h3 style={{ marginTop: 0, color: '#1f1644' }}>Record Audit Finding</h3>
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <h3 style={{ marginTop: 0, color: '#1f1644', fontSize: 20 }}>Record Audit Finding</h3>
             <form onSubmit={handleRecordFinding} className="auth-form">
               <div className="form-row">
                 <label>Select Asset</label>
@@ -349,10 +346,10 @@ export default function Audits() {
               </div>
 
               <div className="form-row">
-                <label>Audit Notes / Observations</label>
+                <label>Audit Notes & Observations</label>
                 <textarea
                   rows={3}
-                  placeholder="Notes on physical condition, serial number check, or location discrepancies..."
+                  placeholder="Notes on physical condition, serial number check, or location observations..."
                   value={findingNotes}
                   onChange={(e) => setFindingNotes(e.target.value)}
                   className="form-input"

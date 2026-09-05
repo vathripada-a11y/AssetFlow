@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import client from '../api/client';
+import EmptyState from '../components/EmptyState';
+import { TableSkeleton } from '../components/SkeletonLoader';
 
 export default function OrgSetup() {
   const [tab, setTab] = useState('departments');
@@ -65,18 +67,20 @@ export default function OrgSetup() {
   }
 
   return (
-    <div className="assets-page" style={{ maxWidth: 1100, margin: '0 auto', paddingBottom: 40 }}>
-      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
+    <div className="assets-page">
+      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24, flexWrap: 'wrap', gap: 16 }}>
         <div>
           <p className="eyebrow">Administration</p>
-          <h2 className="page-heading">Organization Setup & RBAC</h2>
+          <h1 className="page-heading">Organization Setup & Governance</h1>
           <p className="page-subtitle">Configure organizational departments, asset categories, user roles, and access controls.</p>
         </div>
-        <Link to="/dashboard" className="text-link">← Dashboard</Link>
+        <Link to="/dashboard" className="btn btn-ghost" style={{ fontSize: 13, textDecoration: 'none' }}>
+          ← Dashboard
+        </Link>
       </div>
 
-      {error && <p className="form-error" style={{ marginBottom: 16 }}>{error}</p>}
-      {message && <p className="form-success" style={{ marginBottom: 16 }}>{message}</p>}
+      {error && <div className="alert alert-error">⚠️ {error}</div>}
+      {message && <div className="alert alert-success">✓ {message}</div>}
 
       {/* Tabs */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
@@ -100,9 +104,7 @@ export default function OrgSetup() {
       </div>
 
       {loading ? (
-        <div className="card" style={{ padding: 40, textAlign: 'center', color: '#6b5fa6' }}>
-          Loading organization data...
-        </div>
+        <TableSkeleton rows={5} cols={4} />
       ) : tab === 'departments' ? (
         <div className="card" style={{ padding: 28 }}>
           <form onSubmit={createDepartment} style={{ display: 'flex', gap: 12, marginBottom: 24, flexWrap: 'wrap' }}>
@@ -119,28 +121,32 @@ export default function OrgSetup() {
             </button>
           </form>
 
-          <div className="table-card">
-            <table className="asset-table">
-              <thead>
-                <tr>
-                  <th>ID</th>
-                  <th>Department Name</th>
-                  <th>Department Head</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {departments.map((d) => (
-                  <tr key={d.id}>
-                    <td>#{d.id}</td>
-                    <td><strong>{d.name}</strong></td>
-                    <td>{d.head_name || 'Unassigned'}</td>
-                    <td><span className="badge badge-available">{d.status || 'Active'}</span></td>
+          {departments.length > 0 ? (
+            <div className="table-card">
+              <table className="asset-table">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Department Name</th>
+                    <th>Department Head</th>
+                    <th>Status</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {departments.map((d) => (
+                    <tr key={d.id}>
+                      <td>#{d.id}</td>
+                      <td><strong>{d.name}</strong></td>
+                      <td>{d.head_name || 'Unassigned'}</td>
+                      <td><span className="badge badge-available">{d.status || 'Active'}</span></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <EmptyState icon="🏢" title="No departments" description="No organizational departments defined." />
+          )}
         </div>
       ) : tab === 'categories' ? (
         <div className="card" style={{ padding: 28 }}>
@@ -158,69 +164,77 @@ export default function OrgSetup() {
             </button>
           </form>
 
-          <div className="table-card">
-            <table className="asset-table">
-              <thead>
-                <tr>
-                  <th>ID</th>
-                  <th>Category Name</th>
-                  <th>Created Date</th>
-                </tr>
-              </thead>
-              <tbody>
-                {categories.map((c) => (
-                  <tr key={c.id}>
-                    <td>#{c.id}</td>
-                    <td><strong>{c.name}</strong></td>
-                    <td>{c.created_at ? new Date(c.created_at).toLocaleDateString() : '—'}</td>
+          {categories.length > 0 ? (
+            <div className="table-card">
+              <table className="asset-table">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Category Name</th>
+                    <th>Created Date</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {categories.map((c) => (
+                    <tr key={c.id}>
+                      <td>#{c.id}</td>
+                      <td><strong>{c.name}</strong></td>
+                      <td>{c.created_at ? new Date(c.created_at).toLocaleDateString() : '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <EmptyState icon="🏷️" title="No categories" description="No asset categories configured." />
+          )}
         </div>
       ) : (
         <div className="card" style={{ padding: 28 }}>
-          <div className="table-card">
-            <table className="asset-table">
-              <thead>
-                <tr>
-                  <th>Employee</th>
-                  <th>Email</th>
-                  <th>Department</th>
-                  <th>Current Role</th>
-                  <th>Promote / Change Role</th>
-                </tr>
-              </thead>
-              <tbody>
-                {employees.map((e) => (
-                  <tr key={e.id}>
-                    <td><strong>{e.name}</strong></td>
-                    <td>{e.email}</td>
-                    <td>{e.department_name || '—'}</td>
-                    <td>
-                      <span className="badge badge-available" style={{ fontSize: 11 }}>
-                        {e.role}
-                      </span>
-                    </td>
-                    <td>
-                      <select
-                        onChange={(ev) => changeRole(e.id, ev.target.value)}
-                        value={e.role}
-                        className="form-input"
-                        style={{ width: 'auto', padding: '4px 8px', fontSize: 13 }}
-                      >
-                        <option value="employee">Employee</option>
-                        <option value="department_head">Department Head</option>
-                        <option value="asset_manager">Asset Manager</option>
-                        <option value="admin">Admin</option>
-                      </select>
-                    </td>
+          {employees.length > 0 ? (
+            <div className="table-card">
+              <table className="asset-table">
+                <thead>
+                  <tr>
+                    <th>Employee</th>
+                    <th>Email</th>
+                    <th>Department</th>
+                    <th>Current Role</th>
+                    <th>Promote / Change Role</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {employees.map((e) => (
+                    <tr key={e.id}>
+                      <td><strong>{e.name}</strong></td>
+                      <td>{e.email}</td>
+                      <td>{e.department_name || '—'}</td>
+                      <td>
+                        <span className="badge badge-allocated" style={{ fontSize: 11 }}>
+                          {e.role.replace('_', ' ')}
+                        </span>
+                      </td>
+                      <td>
+                        <select
+                          onChange={(ev) => changeRole(e.id, ev.target.value)}
+                          value={e.role}
+                          className="form-input"
+                          style={{ width: 'auto', padding: '6px 10px', fontSize: 13 }}
+                        >
+                          <option value="employee">Employee</option>
+                          <option value="department_head">Department Head</option>
+                          <option value="asset_manager">Asset Manager</option>
+                          <option value="admin">Admin</option>
+                        </select>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <EmptyState icon="👥" title="No employees" description="No employee records found." />
+          )}
         </div>
       )}
     </div>

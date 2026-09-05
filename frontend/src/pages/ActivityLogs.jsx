@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import client from '../api/client';
+import EmptyState from '../components/EmptyState';
+import { TableSkeleton } from '../components/SkeletonLoader';
 
 export default function ActivityLogs() {
   const [logs, setLogs] = useState(null);
@@ -9,6 +11,7 @@ export default function ActivityLogs() {
   const [filterText, setFilterText] = useState('');
 
   useEffect(() => {
+    setLoading(true);
     client.get('/notifications/activity')
       .then((res) => {
         setLogs(res.data);
@@ -23,48 +26,48 @@ export default function ActivityLogs() {
   const filteredLogs = logs
     ? logs.filter((log) =>
         (log.action || '').toLowerCase().includes(filterText.toLowerCase()) ||
-        (log.user_name || '').toLowerCase().includes(filterText.toLowerCase()) ||
-        (log.user_email || '').toLowerCase().includes(filterText.toLowerCase())
+        (log.user_name || log.employee_name || '').toLowerCase().includes(filterText.toLowerCase()) ||
+        (log.user_email || log.employee_email || '').toLowerCase().includes(filterText.toLowerCase())
       )
     : [];
 
   return (
-    <div className="assets-page" style={{ maxWidth: 1100, margin: '0 auto', paddingBottom: 40 }}>
-      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
+    <div className="assets-page">
+      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24, flexWrap: 'wrap', gap: 16 }}>
         <div>
           <p className="eyebrow">Auditability & Security</p>
-          <h2 className="page-heading">System Activity Log</h2>
+          <h1 className="page-heading">System Activity Log</h1>
           <p className="page-subtitle">Immutable timeline of asset allocations, lifecycle transitions, role changes, and system events.</p>
         </div>
-        <Link to="/dashboard" className="text-link">← Back to dashboard</Link>
+        <Link to="/dashboard" className="btn btn-ghost" style={{ fontSize: 13, textDecoration: 'none' }}>
+          ← Dashboard
+        </Link>
       </div>
 
-      {error && <p className="form-error" style={{ marginBottom: 16 }}>{error}</p>}
+      {error && <div className="alert alert-error">⚠️ {error}</div>}
 
       {/* Filter search bar */}
       <div style={{ marginBottom: 20 }}>
         <input
           type="text"
-          placeholder="Search activity by user, action, or keyword..."
+          placeholder="Search activity timeline by user, email, action, or keyword..."
           value={filterText}
           onChange={(e) => setFilterText(e.target.value)}
           className="form-input"
-          style={{ maxWidth: 400 }}
+          style={{ maxWidth: 460 }}
+          aria-label="Search activity logs"
         />
       </div>
 
       {loading ? (
-        <div className="card" style={{ padding: 40, textAlign: 'center', color: '#6b5fa6' }}>
-          Loading activity logs...
-        </div>
+        <TableSkeleton rows={6} cols={3} />
       ) : filteredLogs.length > 0 ? (
         <div className="table-card card">
           <table className="asset-table">
             <thead>
               <tr>
                 <th>Timestamp</th>
-                <th>User / Performer</th>
-                <th>Role</th>
+                <th>Performer</th>
                 <th>Activity Description</th>
               </tr>
             </thead>
@@ -75,23 +78,26 @@ export default function ActivityLogs() {
                     {new Date(log.created_at).toLocaleString()}
                   </td>
                   <td>
-                    <strong>{log.user_name || 'System User'}</strong>
-                    {log.user_email && <div style={{ fontSize: 12, color: '#94a3b8' }}>{log.user_email}</div>}
+                    <strong>{log.user_name || log.employee_name || 'System Performer'}</strong>
+                    {(log.user_email || log.employee_email) && (
+                      <div style={{ fontSize: 12, color: '#948bbd' }}>{log.user_email || log.employee_email}</div>
+                    )}
                   </td>
-                  <td>
-                    <span className="badge badge-available" style={{ fontSize: 11, padding: '2px 8px' }}>
-                      {log.user_role || 'user'}
-                    </span>
-                  </td>
-                  <td style={{ color: '#1f1644' }}>{log.action}</td>
+                  <td style={{ color: '#1f1644', lineHeight: 1.4 }}>{log.action}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       ) : (
-        <div className="card" style={{ padding: 40, textAlign: 'center', color: '#6b5fa6' }}>
-          No activity logs match your search.
+        <div className="card">
+          <EmptyState
+            icon="🛡️"
+            title="No activity records found"
+            description="No system security logs match your search filter."
+            actionText="Clear Search"
+            onAction={() => setFilterText('')}
+          />
         </div>
       )}
     </div>

@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import client from '../api/client';
 import AssetStatusBadge from '../components/AssetStatusBadge';
 import AssetHistoryModal from '../components/AssetHistoryModal';
+import EmptyState from '../components/EmptyState';
+import { TableSkeleton } from '../components/SkeletonLoader';
 import { useAuth } from '../context/AuthContext';
 
 export default function Assets() {
@@ -129,7 +131,6 @@ export default function Assets() {
     setError('');
     setMessage('');
     try {
-      // Find active allocation ID or return via backend
       const historyRes = await client.get(`/assets/${targetAsset.id}/history`);
       const activeAlloc = historyRes.data.allocations?.find((a) => a.status === 'active' || a.status === 'overdue');
       if (!activeAlloc) {
@@ -151,7 +152,7 @@ export default function Assets() {
   }
 
   async function handleTransferRequest(asset) {
-    if (!window.confirm(`Request transfer for asset ${asset.asset_tag} (${asset.name})?`)) return;
+    if (!window.confirm(`Submit transfer request for asset ${asset.asset_tag} (${asset.name})?`)) return;
     setError('');
     setMessage('');
     try {
@@ -163,12 +164,12 @@ export default function Assets() {
   }
 
   return (
-    <div className="assets-page" style={{ maxWidth: 1100, margin: '0 auto', paddingBottom: 40 }}>
+    <div className="assets-page">
       <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24, flexWrap: 'wrap', gap: 16 }}>
         <div>
-          <p className="eyebrow">Asset Catalog</p>
-          <h2 className="page-heading">Manage Inventory Availability</h2>
-          <p className="page-subtitle">Browse assets, filter by category/status, allocate equipment, or review history.</p>
+          <p className="eyebrow">Asset Management</p>
+          <h1 className="page-heading">Inventory Catalog</h1>
+          <p className="page-subtitle">Search assets, review stock availability, allocate hardware, or view lifecycle history.</p>
         </div>
         <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
           {canRegister && (
@@ -180,22 +181,25 @@ export default function Assets() {
               + Register Asset
             </button>
           )}
-          <Link to="/dashboard" className="text-link">← Dashboard</Link>
+          <Link to="/dashboard" className="btn btn-ghost" style={{ fontSize: 13, textDecoration: 'none' }}>
+            ← Dashboard
+          </Link>
         </div>
       </div>
 
-      {error && <p className="form-error" style={{ marginBottom: 16 }}>{error}</p>}
-      {message && <p className="form-success" style={{ marginBottom: 16 }}>{message}</p>}
+      {error && <div className="alert alert-error">⚠️ {error}</div>}
+      {message && <div className="alert alert-success">✓ {message}</div>}
 
-      {/* Filter Controls */}
+      {/* Filter Bar */}
       <div className="card" style={{ padding: 18, marginBottom: 24, display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
         <input
           type="text"
-          placeholder="Search by tag, name, or location..."
+          placeholder="Search by asset tag, name, or location..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="form-input"
-          style={{ flex: 1, minWidth: 220 }}
+          style={{ flex: 1, minWidth: 240 }}
+          aria-label="Search assets"
         />
 
         <select
@@ -203,6 +207,7 @@ export default function Assets() {
           onChange={(e) => setSelectedCategory(e.target.value)}
           className="form-input"
           style={{ width: 'auto', minWidth: 160 }}
+          aria-label="Filter by category"
         >
           <option value="">All Categories</option>
           {categories.map((c) => (
@@ -215,20 +220,19 @@ export default function Assets() {
           onChange={(e) => setSelectedStatus(e.target.value)}
           className="form-input"
           style={{ width: 'auto', minWidth: 160 }}
+          aria-label="Filter by availability status"
         >
           <option value="">All Availability</option>
           <option value="available">Available</option>
           <option value="allocated">Allocated</option>
-          <option value="maintenance">In Maintenance</option>
+          <option value="maintenance">Under Maintenance</option>
           <option value="reserved">Reserved</option>
         </select>
       </div>
 
       {/* Assets Table */}
       {loading ? (
-        <div className="card" style={{ padding: 40, textAlign: 'center', color: '#6b5fa6' }}>
-          Loading asset catalog...
-        </div>
+        <TableSkeleton rows={6} cols={7} />
       ) : assets && assets.length > 0 ? (
         <div className="table-card card">
           <table className="asset-table">
@@ -256,7 +260,7 @@ export default function Assets() {
                   </td>
                   <td>
                     <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
-                      <Link to={`/assets/${asset.id}`} className="text-link" style={{ fontSize: 13 }}>
+                      <Link to={`/assets/${asset.id}`} className="btn btn-ghost" style={{ padding: '4px 10px', fontSize: 12, textDecoration: 'none' }}>
                         Details
                       </Link>
 
@@ -306,8 +310,14 @@ export default function Assets() {
           </table>
         </div>
       ) : (
-        <div className="card" style={{ padding: 40, textAlign: 'center', color: '#6b5fa6' }}>
-          No assets found matching your criteria.
+        <div className="card">
+          <EmptyState
+            icon="📦"
+            title="No matching assets found"
+            description="No inventory items matched your search query or filter selection."
+            actionText="Clear Filters"
+            onAction={() => { setSearch(''); setSelectedCategory(''); setSelectedStatus(''); }}
+          />
         </div>
       )}
 
@@ -321,16 +331,16 @@ export default function Assets() {
 
       {/* Modal: Register Asset */}
       {showRegisterModal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'grid', placeItems: 'center', zIndex: 200, padding: 20 }}>
-          <div className="card" style={{ width: 'min(100%, 520px)', padding: 32 }}>
-            <h3 style={{ marginTop: 0, color: '#1f1644' }}>Register New Asset</h3>
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <h3 style={{ marginTop: 0, color: '#1f1644', fontSize: 20 }}>Register New Asset</h3>
             <form onSubmit={handleRegister} className="auth-form">
               <div className="form-row">
                 <label>Asset Name</label>
                 <input
                   type="text"
                   required
-                  placeholder="e.g. MacBook Pro M3 16-inch"
+                  placeholder="e.g. MacBook Pro M3 Max 16-inch"
                   value={regName}
                   onChange={(e) => setRegName(e.target.value)}
                   className="form-input"
@@ -352,7 +362,7 @@ export default function Assets() {
                   </select>
                 </div>
                 <div>
-                  <label>Condition</label>
+                  <label>Initial Condition</label>
                   <select
                     value={regCondition}
                     onChange={(e) => setRegCondition(e.target.value)}
@@ -381,7 +391,7 @@ export default function Assets() {
                   <label>Location</label>
                   <input
                     type="text"
-                    placeholder="e.g. Building A - Floor 3"
+                    placeholder="e.g. Server Room B - Rack 4"
                     value={regLocation}
                     onChange={(e) => setRegLocation(e.target.value)}
                     className="form-input"
@@ -393,7 +403,7 @@ export default function Assets() {
                 <label>Serial Number (Optional)</label>
                 <input
                   type="text"
-                  placeholder="e.g. C02G1234MD6R"
+                  placeholder="e.g. SN-99824-X11"
                   value={regSerialNumber}
                   onChange={(e) => setRegSerialNumber(e.target.value)}
                   className="form-input"
@@ -407,7 +417,7 @@ export default function Assets() {
                   checked={regIsBookable}
                   onChange={(e) => setRegIsBookable(e.target.checked)}
                 />
-                <label htmlFor="bookable-check" style={{ margin: 0, cursor: 'pointer' }}>
+                <label htmlFor="bookable-check" style={{ margin: 0, cursor: 'pointer', fontSize: 13 }}>
                   Enable time-slot resource bookings for this asset
                 </label>
               </div>
@@ -427,11 +437,11 @@ export default function Assets() {
 
       {/* Modal: Allocate Asset */}
       {showAllocateModal && targetAsset && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'grid', placeItems: 'center', zIndex: 200, padding: 20 }}>
-          <div className="card" style={{ width: 'min(100%, 480px)', padding: 32 }}>
-            <h3 style={{ marginTop: 0, color: '#1f1644' }}>Allocate Asset</h3>
-            <p style={{ color: '#6b5fa6', fontSize: 14 }}>
-              Allocating <strong>{targetAsset.asset_tag} — {targetAsset.name}</strong>
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <h3 style={{ marginTop: 0, color: '#1f1644', fontSize: 20 }}>Allocate Asset</h3>
+            <p style={{ color: '#6b5fa6', fontSize: 14, marginBottom: 20 }}>
+              Assigning <strong>{targetAsset.asset_tag} — {targetAsset.name}</strong>
             </p>
             <form onSubmit={handleAllocate} className="auth-form">
               <div className="form-row">
@@ -445,7 +455,7 @@ export default function Assets() {
                   <option value="">-- Choose Employee --</option>
                   {employees.map((emp) => (
                     <option key={emp.id} value={emp.id}>
-                      {emp.name} ({emp.department_name || 'No Dept'})
+                      {emp.name} ({emp.department_name || 'Unassigned Dept'})
                     </option>
                   ))}
                 </select>
@@ -476,18 +486,18 @@ export default function Assets() {
 
       {/* Modal: Return Asset */}
       {showReturnModal && targetAsset && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'grid', placeItems: 'center', zIndex: 200, padding: 20 }}>
-          <div className="card" style={{ width: 'min(100%, 480px)', padding: 32 }}>
-            <h3 style={{ marginTop: 0, color: '#1f1644' }}>Return Asset</h3>
-            <p style={{ color: '#6b5fa6', fontSize: 14 }}>
-              Marking <strong>{targetAsset.asset_tag} — {targetAsset.name}</strong> as returned.
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <h3 style={{ marginTop: 0, color: '#1f1644', fontSize: 20 }}>Return Asset</h3>
+            <p style={{ color: '#6b5fa6', fontSize: 14, marginBottom: 20 }}>
+              Processing return for <strong>{targetAsset.asset_tag} — {targetAsset.name}</strong>
             </p>
             <form onSubmit={handleReturn} className="auth-form">
               <div className="form-row">
-                <label>Return Condition & Inspection Notes</label>
+                <label>Return Inspection Notes</label>
                 <textarea
                   rows={3}
-                  placeholder="e.g. Good condition, returned with all original cables."
+                  placeholder="Notes on return condition, physical damage, or missing accessories..."
                   value={returnNotes}
                   onChange={(e) => setReturnNotes(e.target.value)}
                   className="form-input"

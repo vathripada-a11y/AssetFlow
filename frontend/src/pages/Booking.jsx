@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import client from '../api/client';
+import EmptyState from '../components/EmptyState';
+import { TableSkeleton } from '../components/SkeletonLoader';
 import { useAuth } from '../context/AuthContext';
 
 export default function Booking() {
@@ -37,7 +39,7 @@ export default function Booking() {
         setBookings(res.data);
         setError('');
       })
-      .catch((err) => setError(err.message || 'Failed to load bookings.'))
+      .catch((err) => setError(err.message || 'Failed to load schedule.'))
       .finally(() => setLoading(false));
   }
 
@@ -52,7 +54,6 @@ export default function Booking() {
     setError('');
     setMessage('');
 
-    // Client-side quick check
     if (new Date(startTime) >= new Date(endTime)) {
       setError('Start time must be before end time.');
       setSubmitting(false);
@@ -70,7 +71,7 @@ export default function Booking() {
       setEndTime('');
       loadBookings();
     } catch (err) {
-      setError(err.message || 'Booking conflict or error. Selected time window is unavailable.');
+      setError(err.message || 'Time slot is unavailable due to an existing booking reservation.');
     } finally {
       setSubmitting(false);
     }
@@ -92,24 +93,26 @@ export default function Booking() {
   const selectedAsset = assets.find((a) => a.id === Number(assetId));
 
   return (
-    <div className="assets-page" style={{ maxWidth: 1100, margin: '0 auto', paddingBottom: 40 }}>
-      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
+    <div className="assets-page">
+      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24, flexWrap: 'wrap', gap: 16 }}>
         <div>
           <p className="eyebrow">Time-Slot Reservations</p>
-          <h2 className="page-heading">Resource & Equipment Booking</h2>
+          <h1 className="page-heading">Resource Booking</h1>
           <p className="page-subtitle">Reserve shared conference hardware, testing devices, or lab equipment with conflict protection.</p>
         </div>
-        <Link to="/dashboard" className="text-link">← Dashboard</Link>
+        <Link to="/dashboard" className="btn btn-ghost" style={{ fontSize: 13, textDecoration: 'none' }}>
+          ← Dashboard
+        </Link>
       </div>
 
-      {error && <p className="form-error" style={{ marginBottom: 16 }}>{error}</p>}
-      {message && <p className="form-success" style={{ marginBottom: 16 }}>{message}</p>}
+      {error && <div className="alert alert-error">⚠️ {error}</div>}
+      {message && <div className="alert alert-success">✓ {message}</div>}
 
       {/* Booking Form Card */}
       <div className="card" style={{ padding: 28, marginBottom: 24 }}>
-        <h3 style={{ marginTop: 0, marginBottom: 20, color: '#1f1644', fontSize: 18 }}>
-          Reserve a Resource
-        </h3>
+        <h2 style={{ marginTop: 0, marginBottom: 18, color: '#1f1644', fontSize: 18, fontWeight: 700 }}>
+          Reserve Equipment
+        </h2>
         <form onSubmit={handleCreateBooking} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16, alignItems: 'end' }}>
           <div>
             <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#1f1644', marginBottom: 6 }}>
@@ -171,12 +174,12 @@ export default function Booking() {
 
       {/* Bookings Schedule Table */}
       <div className="card" style={{ padding: 24 }}>
-        <h3 style={{ marginTop: 0, marginBottom: 16, color: '#1f1644', fontSize: 18 }}>
+        <h2 style={{ marginTop: 0, marginBottom: 16, color: '#1f1644', fontSize: 18, fontWeight: 700 }}>
           Existing Schedule {selectedAsset ? `for ${selectedAsset.name} (${selectedAsset.asset_tag})` : ''}
-        </h3>
+        </h2>
 
         {loading ? (
-          <p style={{ color: '#6b5fa6' }}>Loading schedule...</p>
+          <TableSkeleton rows={3} cols={6} />
         ) : bookings.length > 0 ? (
           <div className="table-card">
             <table className="asset-table">
@@ -212,13 +215,13 @@ export default function Booking() {
                       {(b.booked_by === user?.id || isManagerOrAdmin) && b.status !== 'cancelled' ? (
                         <button
                           onClick={() => handleCancelBooking(b.id)}
-                          className="btn btn-ghost"
-                          style={{ padding: '4px 10px', fontSize: 12, color: '#dc2626' }}
+                          className="btn btn-danger"
+                          style={{ padding: '4px 10px', fontSize: 12 }}
                         >
                           Cancel
                         </button>
                       ) : (
-                        <span style={{ color: '#94a3b8', fontSize: 12 }}>—</span>
+                        <span style={{ color: '#948bbd', fontSize: 12 }}>—</span>
                       )}
                     </td>
                   </tr>
@@ -227,9 +230,11 @@ export default function Booking() {
             </table>
           </div>
         ) : (
-          <div style={{ color: '#6b5fa6', padding: '20px 0' }}>
-            No bookings scheduled for this resource yet.
-          </div>
+          <EmptyState
+            icon="📅"
+            title="No scheduled bookings"
+            description="No active or upcoming time-slot reservations exist for this resource."
+          />
         )}
       </div>
     </div>

@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import client from '../api/client';
+import EmptyState from '../components/EmptyState';
+import { TableSkeleton } from '../components/SkeletonLoader';
 import { useAuth } from '../context/AuthContext';
 
 export default function TransferApprovals() {
@@ -61,35 +63,35 @@ export default function TransferApprovals() {
   }
 
   return (
-    <div className="assets-page" style={{ maxWidth: 1100, margin: '0 auto', paddingBottom: 40 }}>
-      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
+    <div className="assets-page">
+      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24, flexWrap: 'wrap', gap: 16 }}>
         <div>
           <p className="eyebrow">Asset Transfers</p>
-          <h2 className="page-heading">Transfer Requests & Reallocations</h2>
+          <h1 className="page-heading">Transfer Approvals & Reallocations</h1>
           <p className="page-subtitle">Review, approve, or reject asset ownership transfer requests across departments.</p>
         </div>
-        <Link to="/dashboard" className="text-link">← Back to dashboard</Link>
+        <Link to="/dashboard" className="btn btn-ghost" style={{ fontSize: 13, textDecoration: 'none' }}>
+          ← Dashboard
+        </Link>
       </div>
 
-      {error && <p className="form-error" style={{ marginBottom: 16 }}>{error}</p>}
-      {message && <p className="form-success" style={{ marginBottom: 16 }}>{message}</p>}
+      {error && <div className="alert alert-error">⚠️ {error}</div>}
+      {message && <div className="alert alert-success">✓ {message}</div>}
 
       {loading ? (
-        <div className="card" style={{ padding: 40, textAlign: 'center', color: '#6b5fa6' }}>
-          Loading transfer requests...
-        </div>
+        <TableSkeleton rows={5} cols={8} />
       ) : transfers && transfers.length > 0 ? (
         <div className="table-card card">
           <table className="asset-table">
             <thead>
               <tr>
-                <th>Req #</th>
+                <th>Request ID</th>
                 <th>Asset Tag</th>
                 <th>Asset Name</th>
                 <th>Requested By</th>
                 <th>Current Holder</th>
                 <th>Status</th>
-                <th>Date</th>
+                <th>Date Submitted</th>
                 {isManagerOrAdmin && <th>Actions</th>}
               </tr>
             </thead>
@@ -107,35 +109,37 @@ export default function TransferApprovals() {
                         ? 'badge-available'
                         : t.status === 'rejected'
                         ? 'badge-unavailable'
-                        : 'badge-low_stock'
+                        : 'badge-pending'
                     }`}>
                       {t.status}
                     </span>
                   </td>
-                  <td>{new Date(t.created_at).toLocaleDateString()}</td>
+                  <td style={{ fontSize: 13, color: '#6b5fa6' }}>
+                    {new Date(t.created_at).toLocaleDateString()}
+                  </td>
                   {isManagerOrAdmin && (
                     <td>
                       {t.status === 'requested' ? (
-                        <div style={{ display: 'flex', gap: 8 }}>
+                        <div style={{ display: 'flex', gap: 6 }}>
                           <button
                             onClick={() => handleApprove(t.id)}
                             disabled={submittingId === t.id}
                             className="btn btn-primary"
-                            style={{ padding: '6px 12px', fontSize: 13, width: 'auto' }}
+                            style={{ padding: '4px 10px', fontSize: 12, width: 'auto' }}
                           >
                             {submittingId === t.id ? 'Processing...' : 'Approve'}
                           </button>
                           <button
                             onClick={() => handleReject(t.id)}
                             disabled={submittingId === t.id}
-                            className="btn btn-ghost"
-                            style={{ padding: '6px 12px', fontSize: 13 }}
+                            className="btn btn-danger"
+                            style={{ padding: '4px 10px', fontSize: 12 }}
                           >
                             Reject
                           </button>
                         </div>
                       ) : (
-                        <span style={{ color: '#94a3b8', fontSize: 13 }}>Completed</span>
+                        <span style={{ color: '#948bbd', fontSize: 12 }}>Completed</span>
                       )}
                     </td>
                   )}
@@ -145,8 +149,12 @@ export default function TransferApprovals() {
           </table>
         </div>
       ) : (
-        <div className="card" style={{ padding: 40, textAlign: 'center', color: '#6b5fa6' }}>
-          No transfer requests found.
+        <div className="card">
+          <EmptyState
+            icon="🔄"
+            title="No transfer requests"
+            description="There are currently no asset transfer requests requiring review."
+          />
         </div>
       )}
     </div>
