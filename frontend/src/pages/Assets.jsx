@@ -260,14 +260,13 @@ export default function Assets() {
                   </td>
                   <td>
                     <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
-                      <Link to={`/assets/${asset.id}`} className="btn btn-ghost" style={{ padding: '4px 10px', fontSize: 12, textDecoration: 'none' }}>
+                      <Link to={`/assets/${asset.id}`} className="btn btn-ghost btn-sm" style={{ textDecoration: 'none' }}>
                         Details
                       </Link>
 
                       <button
                         onClick={() => setHistoryAsset(asset)}
-                        className="btn btn-ghost"
-                        style={{ padding: '4px 10px', fontSize: 12 }}
+                        className="btn btn-ghost btn-sm"
                       >
                         History
                       </button>
@@ -275,8 +274,8 @@ export default function Assets() {
                       {isManagerOrAdmin && asset.availabilityStatus === 'available' && (
                         <button
                           onClick={() => { setTargetAsset(asset); setShowAllocateModal(true); }}
-                          className="btn btn-primary"
-                          style={{ padding: '4px 10px', fontSize: 12, width: 'auto' }}
+                          className="btn btn-primary btn-sm"
+                          style={{ width: 'auto' }}
                         >
                           Allocate
                         </button>
@@ -285,8 +284,7 @@ export default function Assets() {
                       {isManagerOrAdmin && (asset.availabilityStatus === 'allocated' || asset.availabilityStatus === 'low_stock') && (
                         <button
                           onClick={() => { setTargetAsset(asset); setShowReturnModal(true); }}
-                          className="btn btn-ghost"
-                          style={{ padding: '4px 10px', fontSize: 12 }}
+                          className="btn btn-ghost btn-sm"
                         >
                           Return
                         </button>
@@ -295,8 +293,7 @@ export default function Assets() {
                       {(asset.availabilityStatus === 'allocated' || asset.availabilityStatus === 'low_stock') && (
                         <button
                           onClick={() => handleTransferRequest(asset)}
-                          className="btn btn-ghost"
-                          style={{ padding: '4px 10px', fontSize: 12 }}
+                          className="btn btn-ghost btn-sm"
                           title="Request transfer to yourself"
                         >
                           Transfer

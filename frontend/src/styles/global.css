@@ -216,7 +216,9 @@ a:hover {
   width: 100%;
   border-radius: var(--radius-md);
   border: 1px solid #e2d9f7;
-  padding: 12px 14px;
+  padding: 10px 14px;
+  height: 42px;
+  line-height: 1.4;
   background: #ffffff;
   color: var(--text-strong);
   font-size: 0.95rem;
@@ -293,6 +295,18 @@ a:hover {
 
 .btn-danger:hover:not(:disabled) {
   background: #fee2e2;
+}
+
+.btn-sm {
+  padding: 6px 14px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  height: 32px;
+  line-height: 1;
+  border-radius: var(--radius-sm);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 /* Alerts */
@@ -376,6 +390,42 @@ a:hover {
   color: var(--muted);
   font-size: 0.9rem;
   font-weight: 600;
+}
+
+.details-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  margin-bottom: 28px;
+}
+
+.detail-card {
+  background: var(--surface-white);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  box-shadow: var(--shadow-sm);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.detail-card:hover {
+  border-color: var(--border-medium);
+}
+
+.detail-card .field-title {
+  font-size: 0.72rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.detail-card .field-value {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-strong);
+  word-break: break-word;
 }
 
 /* Tables */

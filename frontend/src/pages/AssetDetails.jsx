@@ -55,18 +55,18 @@ export default function AssetDetails() {
       {loading ? (
         <TableSkeleton rows={4} cols={2} />
       ) : asset ? (
-        <div className="details-card card">
+        <div className="details-card card" style={{ padding: 28 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, paddingBottom: 20, borderBottom: '1px solid var(--border-light)', flexWrap: 'wrap', gap: 16 }}>
             <div>
-              <span style={{ fontSize: 13, background: '#f1eaff', color: '#6d28d9', padding: '4px 12px', borderRadius: 6, fontWeight: 800, letterSpacing: '0.04em' }}>
+              <span style={{ fontSize: 13, background: 'var(--brand-100)', color: 'var(--brand-600)', padding: '4px 12px', borderRadius: 6, fontWeight: 800, letterSpacing: '0.04em' }}>
                 TAG: {asset.asset_tag}
               </span>
-              <h2 style={{ margin: '10px 0 0', fontSize: 24, color: '#1f1644', fontWeight: 800 }}>{asset.name}</h2>
+              <h2 style={{ margin: '10px 0 0', fontSize: 24, color: 'var(--text-strong)', fontWeight: 800 }}>{asset.name}</h2>
             </div>
             <AssetStatusBadge status={asset.availabilityStatus} quantity={asset.quantity} />
           </div>
 
-          <div className="details-grid" style={{ marginBottom: 28 }}>
+          <div className="details-grid">
             <AssetField title="Category" value={asset.category_name || 'Uncategorized'} />
             <AssetField title="Stock Quantity" value={asset.quantity ?? 0} />
             <AssetField title="Physical Condition" value={asset.condition || 'Good'} />
@@ -82,28 +82,28 @@ export default function AssetDetails() {
 
           {/* Lifecycle Overview Metrics */}
           {history && (
-            <div style={{ background: '#f6f3ff', padding: 20, borderRadius: 14, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 20, border: '1px solid rgba(123,91,255,0.1)' }}>
+            <div style={{ background: 'var(--lavender-50)', padding: 20, borderRadius: 14, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 20, border: '1px solid var(--border-medium)' }}>
               <div>
-                <span style={{ fontSize: 11, color: '#6b5fa6', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700 }}>Allocations</span>
-                <div style={{ fontSize: 22, fontWeight: 800, color: '#1f1644', marginTop: 4 }}>{history.allocations?.length || 0}</div>
+                <span style={{ fontSize: 11, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700 }}>Allocations</span>
+                <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--text-strong)', marginTop: 4 }}>{history.allocations?.length || 0}</div>
               </div>
               <div>
-                <span style={{ fontSize: 11, color: '#6b5fa6', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700 }}>Maintenance Tickets</span>
-                <div style={{ fontSize: 22, fontWeight: 800, color: '#1f1644', marginTop: 4 }}>{history.maintenance?.length || 0}</div>
+                <span style={{ fontSize: 11, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700 }}>Maintenance Tickets</span>
+                <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--text-strong)', marginTop: 4 }}>{history.maintenance?.length || 0}</div>
               </div>
               <div>
-                <span style={{ fontSize: 11, color: '#6b5fa6', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700 }}>Transfers</span>
-                <div style={{ fontSize: 22, fontWeight: 800, color: '#1f1644', marginTop: 4 }}>{history.transfers?.length || 0}</div>
+                <span style={{ fontSize: 11, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700 }}>Transfers</span>
+                <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--text-strong)', marginTop: 4 }}>{history.transfers?.length || 0}</div>
               </div>
               <div>
-                <span style={{ fontSize: 11, color: '#6b5fa6', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700 }}>Audit Records</span>
-                <div style={{ fontSize: 22, fontWeight: 800, color: '#1f1644', marginTop: 4 }}>{history.auditFindings?.length || 0}</div>
+                <span style={{ fontSize: 11, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700 }}>Audit Records</span>
+                <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--text-strong)', marginTop: 4 }}>{history.auditFindings?.length || 0}</div>
               </div>
             </div>
           )}
         </div>
       ) : (
-        <div className="card" style={{ padding: 40, textAlign: 'center', color: '#6b5fa6' }}>
+        <div className="card" style={{ padding: 40, textAlign: 'center', color: 'var(--muted)' }}>
           Asset specification not found.
         </div>
       )}
@@ -121,10 +121,10 @@ export default function AssetDetails() {
 function AssetField({ title, value }) {
   return (
     <div className="detail-card">
-      <div className="field-title" style={{ fontSize: 11, color: '#6b5fa6', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700, marginBottom: 6 }}>
+      <div className="field-title">
         {title}
       </div>
-      <div className="field-value" style={{ fontSize: 15, fontWeight: 700, color: '#1f1644' }}>
+      <div className="field-value">
         {value}
       </div>
     </div>

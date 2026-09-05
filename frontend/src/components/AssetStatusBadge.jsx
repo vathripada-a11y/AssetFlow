@@ -6,7 +6,7 @@ export default function AssetStatusBadge({ status, quantity }) {
 
   return (
     <span className={`badge badge-${key}`}>
-      <span>{badge.icon}</span>
+      <span style={{ display: 'inline-flex', alignItems: 'center', lineHeight: 1 }}>{badge.icon}</span>
       <span>{badge.label}</span>
     </span>
   );
