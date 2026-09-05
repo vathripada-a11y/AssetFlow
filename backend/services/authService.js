@@ -13,15 +13,46 @@ async function signup({ name, email, password, departmentId }) {
     throw err;
   }
 
+  let validDeptId = null;
+  if (departmentId !== undefined && departmentId !== null && departmentId !== '') {
+    const parsedDeptId = parseInt(departmentId, 10);
+    if (isNaN(parsedDeptId)) {
+      const err = new Error('Selected department is invalid.');
+      err.status = 400;
+      throw err;
+    }
+    const [dept] = await pool.query('SELECT id FROM departments WHERE id = ?', [parsedDeptId]);
+    if (dept.length === 0) {
+      const err = new Error('Selected department does not exist.');
+      err.status = 400;
+      throw err;
+    }
+    validDeptId = parsedDeptId;
+  }
+
   const passwordHash = await bcrypt.hash(password, 10);
 
-  const [result] = await pool.query(
-    `INSERT INTO employees (name, email, password_hash, department_id, role, status)
-     VALUES (?, ?, ?, ?, 'employee', 'active')`,
-    [name, email, passwordHash, departmentId || null]
-  );
+  try {
+    const [result] = await pool.query(
+      `INSERT INTO employees (name, email, password_hash, department_id, role, status)
+       VALUES (?, ?, ?, ?, 'employee', 'active')`,
+      [name, email, passwordHash, validDeptId]
+    );
 
-  return { id: result.insertId, name, email, role: 'employee' };
+    return { id: result.insertId, name, email, role: 'employee' };
+  } catch (dbErr) {
+    if (dbErr.code === 'ER_DUP_ENTRY') {
+      const err = new Error('An account with this email already exists.');
+      err.status = 409;
+      throw err;
+    }
+    if (dbErr.code === 'ER_NO_REFERENCED_ROW_2' || dbErr.code === 'ER_NO_REFERENCED_ROW' || dbErr.code === 'ER_TRUNCATED_WRONG_VALUE_FOR_FIELD') {
+      const err = new Error('Selected department does not exist.');
+      err.status = 400;
+      throw err;
+    }
+    throw dbErr;
+  }
 }
 
 async function login({ email, password }) {

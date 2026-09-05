@@ -15,7 +15,9 @@ router.post('/signup', async (req, res) => {
     const employee = await authService.signup({ name, email, password, departmentId });
     res.status(201).json({ message: 'Account created successfully.', employee });
   } catch (err) {
-    res.status(err.status || 500).json({ error: err.message || 'Something went wrong. Please try again.' });
+    const status = err.status || 500;
+    const message = err.status ? err.message : 'Something went wrong. Please try again.';
+    res.status(status).json({ error: message });
   }
 });
 
