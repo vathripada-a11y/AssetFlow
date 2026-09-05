@@ -10,31 +10,51 @@ async function createBooking({ assetId, bookedBy, startTime, endTime }) {
     throw err;
   }
 
-  const [assetRows] = await pool.query('SELECT is_bookable FROM assets WHERE id = ?', [assetId]);
-  if (assetRows.length === 0) {
-    const err = new Error('Asset not found.');
-    err.status = 404;
-    throw err;
-  }
-  if (!assetRows[0].is_bookable) {
-    const err = new Error('This asset is not marked as a shared/bookable resource.');
-    err.status = 400;
-    throw err;
-  }
+  const connection = await pool.getConnection();
 
-  const overlapping = await hasOverlap(pool, assetId, startTime, endTime);
-  if (overlapping) {
-    const err = new Error('This time slot overlaps with an existing booking for this resource.');
-    err.status = 409;
-    throw err;
-  }
+  try {
+    await connection.beginTransaction();
 
-  const [result] = await pool.query(
-    `INSERT INTO bookings (asset_id, booked_by, start_time, end_time, status)
-     VALUES (?, ?, ?, ?, 'upcoming')`,
-    [assetId, bookedBy, startTime, endTime]
-  );
-  return { id: result.insertId };
+    // Lock the parent asset row to force concurrent booking requests for this asset to serialize
+    const [assetRows] = await connection.query(
+      'SELECT id, is_bookable, status FROM assets WHERE id = ? FOR UPDATE',
+      [assetId]
+    );
+
+    if (assetRows.length === 0) {
+      const err = new Error('Asset not found.');
+      err.status = 404;
+      throw err;
+    }
+    if (!assetRows[0].is_bookable) {
+      const err = new Error('This asset is not marked as a shared/bookable resource.');
+      err.status = 400;
+      throw err;
+    }
+
+    const overlapping = await hasOverlap(connection, assetId, startTime, endTime);
+    if (overlapping) {
+      const err = new Error('This time slot overlaps with an existing booking for this resource.');
+      err.status = 409;
+      throw err;
+    }
+
+    const [result] = await connection.query(
+      `INSERT INTO bookings (asset_id, booked_by, start_time, end_time, status)
+       VALUES (?, ?, ?, ?, 'upcoming')`,
+      [assetId, bookedBy, startTime, endTime]
+    );
+
+    await connection.commit();
+    return { id: result.insertId };
+
+  } catch (err) {
+    await connection.rollback();
+    throw err;
+
+  } finally {
+    connection.release();
+  }
 }
 
 async function listBookingsForAsset(assetId) {

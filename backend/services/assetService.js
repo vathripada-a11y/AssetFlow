@@ -3,20 +3,35 @@ const generateAssetTag = require('../utils/assetTagGenerator');
 
 // ---- Asset Registration & Directory ----
 async function registerAsset(data) {
-  const assetTag = await generateAssetTag(pool);
-  const [result] = await pool.query(
-    `INSERT INTO assets
-      (asset_tag, name, category_id, serial_number, acquisition_date, acquisition_cost,
-       \`condition\`, location, is_bookable, status, photo_url)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'available', ?)`,
-    [
-      assetTag, data.name, data.categoryId || null, data.serialNumber || null,
-      data.acquisitionDate || null, data.acquisitionCost || null,
-      data.condition || 'good', data.location || null,
-      !!data.isBookable, data.photoUrl || null
-    ]
-  );
-  return { id: result.insertId, assetTag };
+  const connection = await pool.getConnection();
+
+  try {
+    await connection.beginTransaction();
+
+    const assetTag = await generateAssetTag(connection);
+    const [result] = await connection.query(
+      `INSERT INTO assets
+        (asset_tag, name, category_id, serial_number, acquisition_date, acquisition_cost,
+         \`condition\`, location, is_bookable, status, photo_url)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'available', ?)`,
+      [
+        assetTag, data.name, data.categoryId || null, data.serialNumber || null,
+        data.acquisitionDate || null, data.acquisitionCost || null,
+        data.condition || 'good', data.location || null,
+        !!data.isBookable, data.photoUrl || null
+      ]
+    );
+
+    await connection.commit();
+    return { id: result.insertId, assetTag };
+
+  } catch (err) {
+    await connection.rollback();
+    throw err;
+
+  } finally {
+    connection.release();
+  }
 }
 
 async function listAssets(filters = {}) {
@@ -164,42 +179,177 @@ async function requestTransfer({ assetId, requestedBy }) {
 }
 
 async function approveTransfer(transferId, approvedBy) {
-  const [rows] = await pool.query('SELECT * FROM transfer_requests WHERE id = ?', [transferId]);
-  if (rows.length === 0) {
-    const err = new Error('Transfer request not found.');
-    err.status = 404;
-    throw err;
-  }
-  const transfer = rows[0];
+  const connection = await pool.getConnection();
 
-  // Close out the old allocation, open a new one for the requester.
-  await pool.query(
-    "UPDATE allocations SET status = 'returned', returned_at = NOW() WHERE asset_id = ? AND status = 'active'",
-    [transfer.asset_id]
-  );
-  await pool.query(
-    `INSERT INTO allocations (asset_id, employee_id, status) VALUES (?, ?, 'active')`,
-    [transfer.asset_id, transfer.requested_by]
-  );
-  await pool.query(
-    "UPDATE transfer_requests SET status = 'reallocated', approved_by = ? WHERE id = ?",
-    [approvedBy, transferId]
-  );
+  try {
+    await connection.beginTransaction();
+
+    // Lock the transfer request so it cannot be approved concurrently.
+    const [rows] = await connection.query(
+      `SELECT *
+       FROM transfer_requests
+       WHERE id = ?
+       FOR UPDATE`,
+      [transferId]
+    );
+
+    if (rows.length === 0) {
+      const err = new Error('Transfer request not found.');
+      err.status = 404;
+      throw err;
+    }
+
+    const transfer = rows[0];
+
+    // Prevent an already processed request from being approved again.
+    if (transfer.status !== 'requested') {
+      const err = new Error(
+        `Transfer request cannot be approved because its current status is '${transfer.status}'.`
+      );
+      err.status = 409;
+      throw err;
+    }
+
+    // Lock the asset so another allocation/transfer cannot
+    // modify the same asset at the same time.
+    const [assetRows] = await connection.query(
+      `SELECT id, status
+       FROM assets
+       WHERE id = ?
+       FOR UPDATE`,
+      [transfer.asset_id]
+    );
+
+    if (assetRows.length === 0) {
+      const err = new Error('Asset not found.');
+      err.status = 404;
+      throw err;
+    }
+
+    // Lock the current allocation before replacing it.
+    await connection.query(
+      `SELECT id
+       FROM allocations
+       WHERE asset_id = ? AND status = 'active'
+       FOR UPDATE`,
+      [transfer.asset_id]
+    );
+
+    // Close the old allocation.
+    await connection.query(
+      `UPDATE allocations
+       SET status = 'returned',
+           returned_at = NOW()
+       WHERE asset_id = ? AND status = 'active'`,
+      [transfer.asset_id]
+    );
+
+    // Create the new allocation for the requester.
+    await connection.query(
+      `INSERT INTO allocations
+       (asset_id, employee_id, status)
+       VALUES (?, ?, 'active')`,
+      [transfer.asset_id, transfer.requested_by]
+    );
+
+    // Mark the transfer request as completed.
+    await connection.query(
+      `UPDATE transfer_requests
+       SET status = 'reallocated',
+           approved_by = ?
+       WHERE id = ?`,
+      [approvedBy, transferId]
+    );
+
+    await connection.commit();
+
+  } catch (err) {
+    await connection.rollback();
+    throw err;
+
+  } finally {
+    connection.release();
+  }
 }
 
 async function returnAsset(allocationId, { conditionNotes }) {
-  const [rows] = await pool.query('SELECT * FROM allocations WHERE id = ?', [allocationId]);
-  if (rows.length === 0) {
-    const err = new Error('Allocation record not found.');
-    err.status = 404;
+  const connection = await pool.getConnection();
+
+  try {
+    await connection.beginTransaction();
+
+    // Lock the allocation so concurrent return requests
+    // cannot process the same allocation simultaneously.
+    const [rows] = await connection.query(
+      `SELECT *
+       FROM allocations
+       WHERE id = ?
+       FOR UPDATE`,
+      [allocationId]
+    );
+
+    if (rows.length === 0) {
+      const err = new Error('Allocation record not found.');
+      err.status = 404;
+      throw err;
+    }
+
+    const allocation = rows[0];
+
+    // Only active or overdue allocations can be returned.
+    if (
+      allocation.status !== 'active' &&
+      allocation.status !== 'overdue'
+    ) {
+      const err = new Error(
+        `Allocation cannot be returned because its current status is '${allocation.status}'.`
+      );
+      err.status = 409;
+      throw err;
+    }
+
+    // Lock the asset before changing its status.
+    const [assetRows] = await connection.query(
+      `SELECT id
+       FROM assets
+       WHERE id = ?
+       FOR UPDATE`,
+      [allocation.asset_id]
+    );
+
+    if (assetRows.length === 0) {
+      const err = new Error('Asset not found.');
+      err.status = 404;
+      throw err;
+    }
+
+    // Close the allocation.
+    await connection.query(
+      `UPDATE allocations
+       SET status = 'returned',
+           returned_at = NOW(),
+           return_condition_notes = ?
+       WHERE id = ?`,
+      [conditionNotes || null, allocationId]
+    );
+
+    // Make the asset available again.
+    await connection.query(
+      `UPDATE assets
+       SET status = 'available'
+       WHERE id = ?`,
+      [allocation.asset_id]
+    );
+
+    await connection.commit();
+
+  } catch (err) {
+    await connection.rollback();
     throw err;
+
+  } finally {
+    connection.release();
   }
-  await pool.query(
-    `UPDATE allocations SET status = 'returned', returned_at = NOW(), return_condition_notes = ?
-     WHERE id = ?`,
-    [conditionNotes || null, allocationId]
-  );
-  await pool.query("UPDATE assets SET status = 'available' WHERE id = ?", [rows[0].asset_id]);
 }
 
 // Flags allocations past their expected return date as overdue.

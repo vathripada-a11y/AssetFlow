@@ -30,17 +30,52 @@ async function listRequests(filters = {}) {
 // Approving a request is what flips the asset to Under Maintenance —
 // never before approval, per the mandatory workflow rule.
 async function approveRequest(requestId, approvedBy) {
-  const [rows] = await pool.query('SELECT * FROM maintenance_requests WHERE id = ?', [requestId]);
-  if (rows.length === 0) {
-    const err = new Error('Maintenance request not found.');
-    err.status = 404;
+  const connection = await pool.getConnection();
+
+  try {
+    await connection.beginTransaction();
+
+    const [rows] = await connection.query(
+      'SELECT * FROM maintenance_requests WHERE id = ? FOR UPDATE',
+      [requestId]
+    );
+
+    if (rows.length === 0) {
+      const err = new Error('Maintenance request not found.');
+      err.status = 404;
+      throw err;
+    }
+
+    const req = rows[0];
+    if (req.status !== 'pending') {
+      const err = new Error(`Request cannot be approved because its current status is '${req.status}'.`);
+      err.status = 409;
+      throw err;
+    }
+
+    await connection.query(
+      'SELECT id FROM assets WHERE id = ? FOR UPDATE',
+      [req.asset_id]
+    );
+
+    await connection.query(
+      "UPDATE maintenance_requests SET status = 'approved', approved_by = ? WHERE id = ?",
+      [approvedBy, requestId]
+    );
+    await connection.query(
+      "UPDATE assets SET status = 'under_maintenance' WHERE id = ?",
+      [req.asset_id]
+    );
+
+    await connection.commit();
+
+  } catch (err) {
+    await connection.rollback();
     throw err;
+
+  } finally {
+    connection.release();
   }
-  await pool.query(
-    "UPDATE maintenance_requests SET status = 'approved', approved_by = ? WHERE id = ?",
-    [approvedBy, requestId]
-  );
-  await pool.query("UPDATE assets SET status = 'under_maintenance' WHERE id = ?", [rows[0].asset_id]);
 }
 
 async function rejectRequest(requestId, approvedBy) {
@@ -63,17 +98,52 @@ async function markInProgress(requestId) {
 
 // Resolving flips the asset back to Available.
 async function resolveRequest(requestId) {
-  const [rows] = await pool.query('SELECT * FROM maintenance_requests WHERE id = ?', [requestId]);
-  if (rows.length === 0) {
-    const err = new Error('Maintenance request not found.');
-    err.status = 404;
+  const connection = await pool.getConnection();
+
+  try {
+    await connection.beginTransaction();
+
+    const [rows] = await connection.query(
+      'SELECT * FROM maintenance_requests WHERE id = ? FOR UPDATE',
+      [requestId]
+    );
+
+    if (rows.length === 0) {
+      const err = new Error('Maintenance request not found.');
+      err.status = 404;
+      throw err;
+    }
+
+    const req = rows[0];
+    if (req.status === 'resolved' || req.status === 'rejected') {
+      const err = new Error(`Request cannot be resolved because its current status is '${req.status}'.`);
+      err.status = 409;
+      throw err;
+    }
+
+    await connection.query(
+      'SELECT id FROM assets WHERE id = ? FOR UPDATE',
+      [req.asset_id]
+    );
+
+    await connection.query(
+      "UPDATE maintenance_requests SET status = 'resolved', resolved_at = NOW() WHERE id = ?",
+      [requestId]
+    );
+    await connection.query(
+      "UPDATE assets SET status = 'available' WHERE id = ?",
+      [req.asset_id]
+    );
+
+    await connection.commit();
+
+  } catch (err) {
+    await connection.rollback();
     throw err;
+
+  } finally {
+    connection.release();
   }
-  await pool.query(
-    "UPDATE maintenance_requests SET status = 'resolved', resolved_at = NOW() WHERE id = ?",
-    [requestId]
-  );
-  await pool.query("UPDATE assets SET status = 'available' WHERE id = ?", [rows[0].asset_id]);
 }
 
 module.exports = {
