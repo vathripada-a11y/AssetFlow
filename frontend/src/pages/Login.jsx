@@ -25,37 +25,77 @@ export default function Login() {
   }
 
   return (
-    <div style={{ maxWidth: 360, margin: '80px auto', fontFamily: 'sans-serif' }}>
-      <h2>AssetFlow Login</h2>
-      <form onSubmit={handleSubmit}>
-        <div style={{ marginBottom: 12 }}>
-          <label>Email</label>
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            style={{ width: '100%', padding: 8 }}
-            required
-          />
+    <div className="auth-page">
+      <div className="auth-card">
+        <div className="auth-hero">
+          <div className="auth-header">
+            <p className="eyebrow">Welcome to</p>
+            <h2>AssetFlow</h2>
+            <p className="auth-copy">Enterprise Asset &amp; Resource Management to streamline lifecycle, optimize resources, and boost efficiency.</p>
+          </div>
+
+          <div className="features">
+            <div style={{display:'flex',gap:12,alignItems:'flex-start',marginBottom:12}}>
+              <div style={{width:36,height:36,borderRadius:10,background:'rgba(123,91,255,0.14)',display:'grid',placeItems:'center'}}>📦</div>
+              <div>
+                <strong>Manage Assets</strong>
+                <div style={{color:'var(--muted)'}}>Track and manage all your assets in one place</div>
+              </div>
+            </div>
+            <div style={{display:'flex',gap:12,alignItems:'flex-start',marginBottom:12}}>
+              <div style={{width:36,height:36,borderRadius:10,background:'rgba(123,91,255,0.10)',display:'grid',placeItems:'center'}}>👥</div>
+              <div>
+                <strong>Allocate Resources</strong>
+                <div style={{color:'var(--muted)'}}>Efficiently allocate assets to teams</div>
+              </div>
+            </div>
+            <div style={{display:'flex',gap:12,alignItems:'flex-start'}}>
+              <div style={{width:36,height:36,borderRadius:10,background:'rgba(123,91,255,0.08)',display:'grid',placeItems:'center'}}>📊</div>
+              <div>
+                <strong>Real-time Insights</strong>
+                <div style={{color:'var(--muted)'}}>Make data-driven decisions with powerful analytics</div>
+              </div>
+            </div>
+          </div>
         </div>
-        <div style={{ marginBottom: 12 }}>
-          <label>Password</label>
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            style={{ width: '100%', padding: 8 }}
-            required
-          />
+
+        <div className="auth-form-wrap">
+          <form onSubmit={handleSubmit} className="auth-form">
+            <div className="form-row">
+              <label htmlFor="email">Email address</label>
+              <input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="form-input"
+                required
+              />
+            </div>
+            <div className="form-row">
+              <label htmlFor="password">Password</label>
+              <input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="form-input"
+                required
+              />
+            </div>
+
+            {error && <p className="form-error">{error}</p>}
+
+            <button type="submit" disabled={loading} className="btn btn-primary">
+              {loading ? 'Signing in...' : 'Log In'}
+            </button>
+
+            <p className="auth-footer">
+              <small>New to AssetFlow? <Link to="/signup">Create an account</Link></small>
+            </p>
+          </form>
         </div>
-        {error && <p style={{ color: 'red' }}>{error}</p>}
-        <button type="submit" disabled={loading} style={{ width: '100%', padding: 10 }}>
-          {loading ? 'Logging in...' : 'Log In'}
-        </button>
-      </form>
-      <p style={{ marginTop: 12 }}>
-        No account? <Link to="/signup">Sign up</Link>
-      </p>
+      </div>
     </div>
   );
 }

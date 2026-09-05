@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
 
 const authRoutes = require('./routes/authRoutes');
 const orgRoutes = require('./routes/orgRoutes');
@@ -10,6 +11,7 @@ const maintenanceRoutes = require('./routes/maintenanceRoutes');
 const auditRoutes = require('./routes/auditRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 const dashboardRoutes = require('./routes/dashboardRoutes.js');
+const { initializeDatabase } = require('./config/db');
 
 const app = express();
 
@@ -27,11 +29,22 @@ app.use('/api/audits', auditRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 
-// Graceful fallback for unhandled errors — never leak stack traces to the client.
+// Graceful fallback for unhandled errors.
 app.use((err, req, res, next) => {
   console.error(err);
-  res.status(500).json({ error: 'Something went wrong on our end. Please try again.' });
+  const status = err.status || 500;
+  const message = err.message || 'Something went wrong on our end. Please try again.';
+  res.status(status).json({ error: message });
 });
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`AssetFlow backend running on port ${PORT}`));
+
+async function startServer() {
+  await initializeDatabase();
+  app.listen(PORT, () => console.log(`AssetFlow backend running on port ${PORT}`));
+}
+
+startServer().catch((error) => {
+  console.error('Failed to start backend:', error);
+  process.exit(1);
+});

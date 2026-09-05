@@ -13,7 +13,16 @@ client.interceptors.request.use((config) => {
 client.interceptors.response.use(
   (response) => response,
   (error) => {
-    const message = error.response?.data?.error || 'Something went wrong. Please try again.';
+    if (!error.response) {
+      const message = error.message || 'Unable to reach the server. Make sure the backend is running on port 5000.';
+      return Promise.reject(new Error(message));
+    }
+
+    const message =
+      error.response.data?.error ||
+      error.response.data?.message ||
+      `Request failed with status ${error.response.status}.`;
+
     return Promise.reject(new Error(message));
   }
 );
