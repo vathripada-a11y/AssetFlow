@@ -29,7 +29,7 @@ router.post('/', async (req, res) => {
 
 router.put('/:id/cancel', async (req, res) => {
   try {
-    await bookingService.cancelBooking(req.params.id, req.user.id);
+    await bookingService.cancelBooking(req.params.id, req.user);
     res.json({ message: 'Booking cancelled.' });
   } catch (err) {
     res.status(500).json({ error: 'Could not cancel booking.' });

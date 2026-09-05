@@ -15,7 +15,7 @@ router.get('/', async (req, res) => {
 
 router.put('/:id/read', async (req, res) => {
   try {
-    await notificationService.markRead(req.params.id);
+    await notificationService.markRead(req.params.id, req.user.id);
     res.json({ message: 'Marked as read.' });
   } catch (err) {
     res.status(500).json({ error: 'Could not update notification.' });

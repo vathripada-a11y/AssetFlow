@@ -15,7 +15,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-router.post('/', requireRole(['asset_manager']), async (req, res) => {
+router.post('/', requireRole(['admin', 'asset_manager']), async (req, res) => {
   try {
     const asset = await assetService.registerAsset(req.body);
     res.status(201).json(asset);
@@ -33,13 +33,14 @@ router.get('/:id/history', async (req, res) => {
 });
 
 // Allocation — blocked automatically if already allocated (see service layer)
-router.post('/:id/allocate', requireRole(['asset_manager', 'department_head']), async (req, res) => {
+router.post('/:id/allocate', requireRole(['admin', 'asset_manager', 'department_head']), async (req, res) => {
   try {
     const result = await assetService.allocateAsset({
       assetId: req.params.id,
       employeeId: req.body.employeeId,
       departmentId: req.body.departmentId,
-      expectedReturnDate: req.body.expectedReturnDate
+      expectedReturnDate: req.body.expectedReturnDate,
+      requestingUser: req.user
     });
     res.status(201).json(result);
   } catch (err) {
@@ -62,18 +63,18 @@ router.post('/:id/transfer-request', async (req, res) => {
   }
 });
 
-router.put('/transfer-requests/:id/approve', requireRole(['asset_manager', 'department_head']), async (req, res) => {
+router.put('/transfer-requests/:id/approve', requireRole(['admin', 'asset_manager', 'department_head']), async (req, res) => {
   try {
-    await assetService.approveTransfer(req.params.id, req.user.id);
+    await assetService.approveTransfer(req.params.id, req.user.id, req.user);
     res.json({ message: 'Transfer approved and asset reallocated.' });
   } catch (err) {
     res.status(err.status || 500).json({ error: err.message || 'Could not approve transfer.' });
   }
 });
 
-router.put('/allocations/:id/return', requireRole(['asset_manager', 'department_head']), async (req, res) => {
+router.put('/allocations/:id/return', requireRole(['admin', 'asset_manager', 'department_head']), async (req, res) => {
   try {
-    await assetService.returnAsset(req.params.id, { conditionNotes: req.body.conditionNotes });
+    await assetService.returnAsset(req.params.id, { conditionNotes: req.body.conditionNotes }, req.user);
     res.json({ message: 'Asset marked as returned.' });
   } catch (err) {
     res.status(err.status || 500).json({ error: err.message || 'Could not process return.' });

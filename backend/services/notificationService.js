@@ -15,8 +15,8 @@ async function listForEmployee(employeeId) {
   return rows;
 }
 
-async function markRead(notificationId) {
-  await pool.query('UPDATE notifications SET is_read = TRUE WHERE id = ?', [notificationId]);
+async function markRead(notificationId, employeeId) {
+  await pool.query('UPDATE notifications SET is_read = TRUE WHERE id = ? AND employee_id = ?', [notificationId, employeeId]);
 }
 
 async function logActivity(employeeId, action) {

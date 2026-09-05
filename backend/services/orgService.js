@@ -43,13 +43,22 @@ async function listCategories() {
 }
 
 // ---- Employee Directory ----
-async function listEmployees() {
-  const [rows] = await pool.query(`
-    SELECT e.id, e.name, e.email, e.role, e.status, d.name AS department_name
+async function listEmployees(requestingUser) {
+  let query = `
+    SELECT e.id, e.name, e.email, e.role, e.status, e.department_id, d.name AS department_name
     FROM employees e
     LEFT JOIN departments d ON e.department_id = d.id
-    ORDER BY e.name
-  `);
+    WHERE 1=1
+  `;
+  const params = [];
+
+  if (requestingUser && requestingUser.role === 'department_head') {
+    query += ' AND e.department_id = ?';
+    params.push(requestingUser.department_id);
+  }
+
+  query += ' ORDER BY e.name';
+  const [rows] = await pool.query(query, params);
   return rows;
 }
 

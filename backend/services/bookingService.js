@@ -68,11 +68,23 @@ async function listBookingsForAsset(assetId) {
   return rows;
 }
 
-async function cancelBooking(bookingId, requesterId) {
-  await pool.query(
-    "UPDATE bookings SET status = 'cancelled' WHERE id = ? AND booked_by = ?",
-    [bookingId, requesterId]
-  );
+async function cancelBooking(bookingId, requester) {
+  const isManagerOrAdmin =
+    typeof requester === 'object' &&
+    (requester.role === 'admin' || requester.role === 'asset_manager');
+
+  if (isManagerOrAdmin) {
+    await pool.query(
+      "UPDATE bookings SET status = 'cancelled' WHERE id = ?",
+      [bookingId]
+    );
+  } else {
+    const requesterId = typeof requester === 'object' ? requester.id : requester;
+    await pool.query(
+      "UPDATE bookings SET status = 'cancelled' WHERE id = ? AND booked_by = ?",
+      [bookingId, requesterId]
+    );
+  }
 }
 
 module.exports = { createBooking, listBookingsForAsset, cancelBooking };

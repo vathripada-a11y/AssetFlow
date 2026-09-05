@@ -29,7 +29,7 @@ router.post('/', async (req, res) => {
   }
 });
 
-router.put('/:id/approve', requireRole(['asset_manager']), async (req, res) => {
+router.put('/:id/approve', requireRole(['admin', 'asset_manager']), async (req, res) => {
   try {
     await maintenanceService.approveRequest(req.params.id, req.user.id);
     res.json({ message: 'Request approved. Asset marked Under Maintenance.' });
@@ -38,7 +38,7 @@ router.put('/:id/approve', requireRole(['asset_manager']), async (req, res) => {
   }
 });
 
-router.put('/:id/reject', requireRole(['asset_manager']), async (req, res) => {
+router.put('/:id/reject', requireRole(['admin', 'asset_manager']), async (req, res) => {
   try {
     await maintenanceService.rejectRequest(req.params.id, req.user.id);
     res.json({ message: 'Request rejected.' });
@@ -47,7 +47,7 @@ router.put('/:id/reject', requireRole(['asset_manager']), async (req, res) => {
   }
 });
 
-router.put('/:id/assign-technician', requireRole(['asset_manager']), async (req, res) => {
+router.put('/:id/assign-technician', requireRole(['admin', 'asset_manager']), async (req, res) => {
   try {
     await maintenanceService.assignTechnician(req.params.id, req.body.technicianName);
     res.json({ message: 'Technician assigned.' });
@@ -56,7 +56,7 @@ router.put('/:id/assign-technician', requireRole(['asset_manager']), async (req,
   }
 });
 
-router.put('/:id/in-progress', requireRole(['asset_manager']), async (req, res) => {
+router.put('/:id/in-progress', requireRole(['admin', 'asset_manager']), async (req, res) => {
   try {
     await maintenanceService.markInProgress(req.params.id);
     res.json({ message: 'Marked as in progress.' });
@@ -65,7 +65,7 @@ router.put('/:id/in-progress', requireRole(['asset_manager']), async (req, res) 
   }
 });
 
-router.put('/:id/resolve', requireRole(['asset_manager']), async (req, res) => {
+router.put('/:id/resolve', requireRole(['admin', 'asset_manager']), async (req, res) => {
   try {
     await maintenanceService.resolveRequest(req.params.id);
     res.json({ message: 'Request resolved. Asset marked Available.' });

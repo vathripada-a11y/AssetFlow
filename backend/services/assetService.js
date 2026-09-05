@@ -130,6 +130,25 @@ async function allocateAsset({
       throw err;
     }
 
+    if (requestingUser && requestingUser.role === 'department_head') {
+      if (employeeId) {
+        const [empRows] = await connection.query(
+          'SELECT department_id FROM employees WHERE id = ?',
+          [employeeId]
+        );
+        if (empRows.length > 0 && empRows[0].department_id !== requestingUser.department_id) {
+          const err = new Error('Department Heads can only allocate assets to employees within their own department.');
+          err.status = 403;
+          throw err;
+        }
+      }
+      if (departmentId && parseInt(departmentId, 10) !== parseInt(requestingUser.department_id, 10)) {
+        const err = new Error('Department Heads can only allocate assets to their own department.');
+        err.status = 403;
+        throw err;
+      }
+    }
+
     const [result] = await connection.query(
       `INSERT INTO allocations
        (asset_id, employee_id, department_id, expected_return_date, status)
@@ -208,6 +227,29 @@ async function approveTransfer(transferId, approvedBy) {
       );
       err.status = 409;
       throw err;
+    }
+
+    if (requestingUser && requestingUser.role === 'department_head') {
+      const [reqEmp] = await connection.query(
+        'SELECT department_id FROM employees WHERE id = ?',
+        [transfer.requested_by]
+      );
+      const isRequesterInDept = reqEmp.length > 0 && reqEmp[0].department_id === requestingUser.department_id;
+
+      let isCurrentHolderInDept = false;
+      if (transfer.current_holder_id) {
+        const [curEmp] = await connection.query(
+          'SELECT department_id FROM employees WHERE id = ?',
+          [transfer.current_holder_id]
+        );
+        isCurrentHolderInDept = curEmp.length > 0 && curEmp[0].department_id === requestingUser.department_id;
+      }
+
+      if (!isRequesterInDept && !isCurrentHolderInDept) {
+        const err = new Error('Department Heads can only approve transfer requests involving their own department.');
+        err.status = 403;
+        throw err;
+      }
     }
 
     // Lock the asset so another allocation/transfer cannot
@@ -306,6 +348,22 @@ async function returnAsset(allocationId, { conditionNotes }) {
       );
       err.status = 409;
       throw err;
+    }
+
+    if (requestingUser && requestingUser.role === 'department_head') {
+      let isDeptMatch = allocation.department_id === requestingUser.department_id;
+      if (!isDeptMatch && allocation.employee_id) {
+        const [empRows] = await connection.query(
+          'SELECT department_id FROM employees WHERE id = ?',
+          [allocation.employee_id]
+        );
+        isDeptMatch = empRows.length > 0 && empRows[0].department_id === requestingUser.department_id;
+      }
+      if (!isDeptMatch) {
+        const err = new Error('Department Heads can only return assets allocated to their own department.');
+        err.status = 403;
+        throw err;
+      }
     }
 
     // Lock the asset before changing its status.

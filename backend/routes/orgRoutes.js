@@ -54,7 +54,7 @@ router.post('/categories', requireRole(['admin']), async (req, res) => {
 // --- Employee Directory ---
 router.get('/employees', requireRole(['admin', 'asset_manager', 'department_head']), async (req, res) => {
   try {
-    res.json(await orgService.listEmployees());
+    res.json(await orgService.listEmployees(req.user));
   } catch (err) {
     res.status(500).json({ error: 'Could not load employee directory.' });
   }

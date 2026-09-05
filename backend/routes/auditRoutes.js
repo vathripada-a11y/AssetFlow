@@ -23,7 +23,7 @@ router.post('/', requireRole(['admin']), async (req, res) => {
   }
 });
 
-router.post('/:id/findings', async (req, res) => {
+router.post('/:id/findings', requireRole(['admin', 'asset_manager', 'department_head']), async (req, res) => {
   try {
     await auditService.recordFinding({
       auditCycleId: req.params.id,
