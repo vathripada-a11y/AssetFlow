@@ -74,8 +74,11 @@ export default function Maintenance() {
     setError('');
     setMessage('');
     try {
-      await client.put(`/maintenance/${id}/${action}`, extraPayload);
-      setMessage(`Maintenance request marked as ${action.replace('-', ' ')}.`);
+      if (action === 'in-progress' && extraPayload.technicianName) {
+        await client.put(`/maintenance/${id}/assign-technician`, { technicianName: extraPayload.technicianName });
+      }
+      await client.put(`/maintenance/${id}/${action}`);
+      setMessage(`Maintenance request updated.`);
       loadData();
     } catch (err) {
       setError(err.message || `Failed to process ${action}.`);

@@ -64,7 +64,10 @@ export default function Audits() {
     setError('');
     setMessage('');
     try {
-      await client.post('/audits', { title: newCycleName, scope: newCycleScope });
+      await client.post('/audits', {
+        scopeLocation: newCycleName,
+        startDate: new Date().toISOString().slice(0, 10)
+      });
       setMessage('Audit cycle created successfully.');
       setShowCreateModal(false);
       setNewCycleName('');
@@ -342,7 +345,6 @@ export default function Audits() {
                   <option value="verified">Verified (Present & Healthy)</option>
                   <option value="missing">Missing / Unaccounted</option>
                   <option value="damaged">Damaged / Needs Repair</option>
-                  <option value="mislocated">Mislocated / Wrong Room</option>
                 </select>
               </div>
 

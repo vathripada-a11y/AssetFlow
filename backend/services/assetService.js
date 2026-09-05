@@ -511,30 +511,72 @@ async function listTransferRequests(requestingUser) {
 }
 
 async function rejectTransfer(transferId, rejectedBy, requestingUser) {
-  const [rows] = await pool.query(
-    `SELECT * FROM transfer_requests WHERE id = ?`,
-    [transferId]
-  );
-  if (rows.length === 0) {
-    const err = new Error('Transfer request not found.');
-    err.status = 404;
-    throw err;
-  }
-  const transfer = rows[0];
-  if (transfer.status !== 'requested') {
-    const err = new Error(`Transfer request cannot be rejected because its current status is '${transfer.status}'.`);
-    err.status = 409;
-    throw err;
-  }
+  const connection = await pool.getConnection();
 
-  await pool.query(
-    `UPDATE transfer_requests SET status = 'rejected', approved_by = ? WHERE id = ?`,
-    [rejectedBy, transferId]
-  );
+  try {
+    await connection.beginTransaction();
 
-  await logActivity(rejectedBy, `Rejected transfer request #${transferId} for asset #${transfer.asset_id}`);
-  await notify(transfer.requested_by, 'transfer', `Your transfer request for asset #${transfer.asset_id} was rejected.`);
+    const [rows] = await connection.query(
+      `SELECT * FROM transfer_requests WHERE id = ? FOR UPDATE`,
+      [transferId]
+    );
+
+    if (rows.length === 0) {
+      const err = new Error('Transfer request not found.');
+      err.status = 404;
+      throw err;
+    }
+
+    const transfer = rows[0];
+
+    if (transfer.status !== 'requested') {
+      const err = new Error(`Transfer request cannot be rejected because its current status is '${transfer.status}'.`);
+      err.status = 409;
+      throw err;
+    }
+
+    if (requestingUser && requestingUser.role === 'department_head') {
+      const [reqEmp] = await connection.query(
+        'SELECT department_id FROM employees WHERE id = ?',
+        [transfer.requested_by]
+      );
+      const isRequesterInDept = reqEmp.length > 0 && reqEmp[0].department_id === requestingUser.department_id;
+
+      let isCurrentHolderInDept = false;
+      if (transfer.current_holder_id) {
+        const [curEmp] = await connection.query(
+          'SELECT department_id FROM employees WHERE id = ?',
+          [transfer.current_holder_id]
+        );
+        isCurrentHolderInDept = curEmp.length > 0 && curEmp[0].department_id === requestingUser.department_id;
+      }
+
+      if (!isRequesterInDept && !isCurrentHolderInDept) {
+        const err = new Error('Department Heads can only reject transfer requests involving their own department.');
+        err.status = 403;
+        throw err;
+      }
+    }
+
+    await connection.query(
+      `UPDATE transfer_requests SET status = 'rejected', approved_by = ? WHERE id = ?`,
+      [rejectedBy, transferId]
+    );
+
+    await logActivity(rejectedBy, `Rejected transfer request #${transferId} for asset #${transfer.asset_id}`, connection);
+    await notify(transfer.requested_by, 'transfer', `Your transfer request for asset #${transfer.asset_id} was rejected.`, connection);
+
+    await connection.commit();
+
+  } catch (err) {
+    await connection.rollback();
+    throw err;
+
+  } finally {
+    connection.release();
+  }
 }
+
 
 module.exports = {
   registerAsset,
