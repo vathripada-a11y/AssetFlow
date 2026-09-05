@@ -271,7 +271,7 @@ export default function Assets() {
                         History
                       </button>
 
-                      {isManagerOrAdmin && asset.availabilityStatus === 'available' && (
+                      {isManagerOrAdmin && (asset.status === 'available' || asset.availabilityStatus === 'available') && (
                         <button
                           onClick={() => { setTargetAsset(asset); setShowAllocateModal(true); }}
                           className="btn btn-primary btn-sm"
@@ -281,7 +281,7 @@ export default function Assets() {
                         </button>
                       )}
 
-                      {isManagerOrAdmin && (asset.availabilityStatus === 'allocated' || asset.availabilityStatus === 'low_stock') && (
+                      {isManagerOrAdmin && (asset.status === 'allocated' || asset.availabilityStatus === 'allocated' || asset.availabilityStatus === 'low_stock') && (
                         <button
                           onClick={() => { setTargetAsset(asset); setShowReturnModal(true); }}
                           className="btn btn-ghost btn-sm"
@@ -290,7 +290,7 @@ export default function Assets() {
                         </button>
                       )}
 
-                      {(asset.availabilityStatus === 'allocated' || asset.availabilityStatus === 'low_stock') && (
+                      {(asset.status === 'allocated' || asset.availabilityStatus === 'allocated' || asset.availabilityStatus === 'low_stock') && (
                         <button
                           onClick={() => handleTransferRequest(asset)}
                           className="btn btn-ghost btn-sm"
