@@ -67,6 +67,22 @@ async function listAssets(filters = {}) {
   return rows;
 }
 
+async function getAssetById(id) {
+  const [rows] = await pool.query(
+    `SELECT a.*, c.name AS category_name
+     FROM assets a
+     LEFT JOIN asset_categories c ON a.category_id = c.id
+     WHERE a.id = ?`,
+    [id]
+  );
+  if (rows.length === 0) {
+    const err = new Error('Asset not found.');
+    err.status = 404;
+    throw err;
+  }
+  return rows[0];
+}
+
 async function getAssetHistory(assetId) {
   const [allocations] = await pool.query(
     `SELECT al.*, e.name AS employee_name, d.name AS department_name
@@ -470,13 +486,67 @@ async function flagOverdueAllocations() {
   );
 }
 
+async function listTransferRequests(requestingUser) {
+  let query = `
+    SELECT tr.*, a.name as asset_name, a.asset_tag,
+           req.name as requester_name, cur.name as current_holder_name
+    FROM transfer_requests tr
+    JOIN assets a ON tr.asset_id = a.id
+    JOIN employees req ON tr.requested_by = req.id
+    LEFT JOIN employees cur ON tr.current_holder_id = cur.id
+  `;
+  const params = [];
+
+  if (requestingUser?.role === 'department_head') {
+    query += ` WHERE (req.department_id = ? OR cur.department_id = ?)`;
+    params.push(requestingUser.department_id, requestingUser.department_id);
+  } else if (requestingUser?.role === 'employee') {
+    query += ` WHERE (tr.requested_by = ? OR tr.current_holder_id = ?)`;
+    params.push(requestingUser.id, requestingUser.id);
+  }
+
+  query += ` ORDER BY tr.created_at DESC`;
+  const [rows] = await pool.query(query, params);
+  return rows;
+}
+
+async function rejectTransfer(transferId, rejectedBy, requestingUser) {
+  const [rows] = await pool.query(
+    `SELECT * FROM transfer_requests WHERE id = ?`,
+    [transferId]
+  );
+  if (rows.length === 0) {
+    const err = new Error('Transfer request not found.');
+    err.status = 404;
+    throw err;
+  }
+  const transfer = rows[0];
+  if (transfer.status !== 'requested') {
+    const err = new Error(`Transfer request cannot be rejected because its current status is '${transfer.status}'.`);
+    err.status = 409;
+    throw err;
+  }
+
+  await pool.query(
+    `UPDATE transfer_requests SET status = 'rejected', approved_by = ? WHERE id = ?`,
+    [rejectedBy, transferId]
+  );
+
+  await logActivity(rejectedBy, `Rejected transfer request #${transferId} for asset #${transfer.asset_id}`);
+  await notify(transfer.requested_by, 'transfer', `Your transfer request for asset #${transfer.asset_id} was rejected.`);
+}
+
 module.exports = {
   registerAsset,
   listAssets,
+  getAssetById,
   getAssetHistory,
   allocateAsset,
   requestTransfer,
   approveTransfer,
+  rejectTransfer,
+  listTransferRequests,
   returnAsset,
   flagOverdueAllocations
 };
+

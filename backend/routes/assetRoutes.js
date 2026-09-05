@@ -24,6 +24,22 @@ router.post('/', requireRole(['admin', 'asset_manager']), async (req, res) => {
   }
 });
 
+router.get('/transfer-requests', async (req, res) => {
+  try {
+    res.json(await assetService.listTransferRequests(req.user));
+  } catch (err) {
+    res.status(500).json({ error: 'Could not load transfer requests.' });
+  }
+});
+
+router.get('/:id', async (req, res) => {
+  try {
+    res.json(await assetService.getAssetById(req.params.id));
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message || 'Could not load asset.' });
+  }
+});
+
 router.get('/:id/history', async (req, res) => {
   try {
     res.json(await assetService.getAssetHistory(req.params.id));
@@ -71,6 +87,16 @@ router.put('/transfer-requests/:id/approve', requireRole(['admin', 'asset_manage
     res.status(err.status || 500).json({ error: err.message || 'Could not approve transfer.' });
   }
 });
+
+router.put('/transfer-requests/:id/reject', requireRole(['admin', 'asset_manager', 'department_head']), async (req, res) => {
+  try {
+    await assetService.rejectTransfer(req.params.id, req.user.id, req.user);
+    res.json({ message: 'Transfer request rejected.' });
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message || 'Could not reject transfer.' });
+  }
+});
+
 
 router.put('/allocations/:id/return', requireRole(['admin', 'asset_manager', 'department_head']), async (req, res) => {
   try {

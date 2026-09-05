@@ -6,11 +6,29 @@ import Signup from './pages/Signup';
 import Dashboard from './pages/Dashboard';
 import Assets from './pages/Assets';
 import AssetDetails from './pages/AssetDetails';
+import Booking from './pages/Booking';
+import Maintenance from './pages/Maintenance';
+import TransferApprovals from './pages/TransferApprovals';
+import Audits from './pages/Audits';
+import ActivityLogs from './pages/ActivityLogs';
+import OrgSetup from './pages/OrgSetup';
 import Background from './components/Background';
+import Navbar from './components/Navbar';
+
+function AppLayout({ children }) {
+  return (
+    <>
+      <Navbar />
+      <main style={{ padding: '24px 16px' }}>
+        {children}
+      </main>
+    </>
+  );
+}
 
 export default function App() {
   return (
-    <div className="app-shell">
+    <div className="app-shell" style={{ padding: 0 }}>
       <Background />
       <AuthProvider>
         <BrowserRouter>
@@ -18,11 +36,14 @@ export default function App() {
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
+
             <Route
               path="/dashboard"
               element={
                 <ProtectedRoute>
-                  <Dashboard />
+                  <AppLayout>
+                    <Dashboard />
+                  </AppLayout>
                 </ProtectedRoute>
               }
             />
@@ -30,7 +51,9 @@ export default function App() {
               path="/assets"
               element={
                 <ProtectedRoute>
-                  <Assets />
+                  <AppLayout>
+                    <Assets />
+                  </AppLayout>
                 </ProtectedRoute>
               }
             />
@@ -38,11 +61,74 @@ export default function App() {
               path="/assets/:id"
               element={
                 <ProtectedRoute>
-                  <AssetDetails />
+                  <AppLayout>
+                    <AssetDetails />
+                  </AppLayout>
                 </ProtectedRoute>
               }
             />
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+            <Route
+              path="/booking"
+              element={
+                <ProtectedRoute>
+                  <AppLayout>
+                    <Booking />
+                  </AppLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/maintenance"
+              element={
+                <ProtectedRoute>
+                  <AppLayout>
+                    <Maintenance />
+                  </AppLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/transfers"
+              element={
+                <ProtectedRoute>
+                  <AppLayout>
+                    <TransferApprovals />
+                  </AppLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/audits"
+              element={
+                <ProtectedRoute>
+                  <AppLayout>
+                    <Audits />
+                  </AppLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/activity"
+              element={
+                <ProtectedRoute>
+                  <AppLayout>
+                    <ActivityLogs />
+                  </AppLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/org-setup"
+              element={
+                <ProtectedRoute>
+                  <AppLayout>
+                    <OrgSetup />
+                  </AppLayout>
+                </ProtectedRoute>
+              }
+            />
+
+            <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>
         </BrowserRouter>
       </AuthProvider>
