@@ -78,7 +78,13 @@ async function login({ email, password }) {
     throw err;
   }
 
-  const jwtSecret = process.env.JWT_SECRET || 'change_this_to_a_long_random_string';
+  const jwtSecret = process.env.JWT_SECRET || (process.env.NODE_ENV === 'production' ? null : 'change_this_to_a_long_random_string');
+  if (!jwtSecret) {
+    const err = new Error('JWT_SECRET environment variable is not configured.');
+    err.status = 500;
+    throw err;
+  }
+
   const token = jwt.sign(
     {
       id: employee.id,

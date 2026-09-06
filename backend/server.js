@@ -15,7 +15,16 @@ const { initializeDatabase } = require('./config/db');
 
 const app = express();
 
-app.use(cors());
+const corsOptions = process.env.CORS_ORIGIN
+  ? {
+      origin: process.env.CORS_ORIGIN.includes(',')
+        ? process.env.CORS_ORIGIN.split(',').map((o) => o.trim())
+        : process.env.CORS_ORIGIN,
+      credentials: true
+    }
+  : {};
+
+app.use(cors(corsOptions));
 app.use(express.json());
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));

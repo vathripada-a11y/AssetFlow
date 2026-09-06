@@ -10,8 +10,13 @@ function authenticate(req, res, next) {
   }
 
   const token = header.split(' ')[1];
+  const jwtSecret = process.env.JWT_SECRET || (process.env.NODE_ENV === 'production' ? null : 'change_this_to_a_long_random_string');
+  if (!jwtSecret) {
+    return res.status(500).json({ error: 'Server authentication misconfigured.' });
+  }
+
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = jwt.verify(token, jwtSecret);
     req.user = decoded;
     next();
   } catch (err) {
